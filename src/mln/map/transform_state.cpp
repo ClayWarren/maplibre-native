@@ -126,6 +126,10 @@ ProjectionData TransformState::getProjectionData(const UnwrappedTileID& tileID) 
     return getProjectionData(tileID, getProjectionMatrix());
 }
 
+ProjectionData TransformState::getProjectionDataForMatrix(const UnwrappedTileID& tileID, const mat4& mainMatrix) const {
+    return projection->getProjectionData(tileID, mainMatrix);
+}
+
 void TransformState::getProjMatrix(mat4& projMatrix, uint16_t nearZ, bool aligned) const {
     if (size.isEmpty()) {
         return;

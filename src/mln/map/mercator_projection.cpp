@@ -29,10 +29,23 @@ void MercatorProjection::tileMatrix(mat4& matrix, const UnwrappedTileID& tileID,
 ProjectionData MercatorProjection::getProjectionData(const UnwrappedTileID& tileID,
                                                      double scale,
                                                      const mat4& projMatrix) const {
-    ProjectionData data;
-    tileMatrix(data.mainMatrix, tileID, scale);
-    matrix::multiply(data.mainMatrix, projMatrix, data.mainMatrix);
-    return data;
+    mat4 mainMatrix;
+    tileMatrix(mainMatrix, tileID, scale);
+    matrix::multiply(mainMatrix, projMatrix, mainMatrix);
+    return getProjectionData(tileID, mainMatrix);
+}
+
+ProjectionData MercatorProjection::getProjectionData(const UnwrappedTileID& tileID, const mat4& mainMatrix) const {
+    const double tileScale = static_cast<double>(1ull << tileID.canonical.z);
+    return {.mainMatrix = mainMatrix,
+            .tileMercatorCoords = {{tileID.canonical.x / tileScale,
+                                    tileID.canonical.y / tileScale,
+                                    1.0 / tileScale / util::EXTENT,
+                                    1.0 / tileScale / util::EXTENT}},
+            .clippingPlane = {{0, 0, 0, 0}},
+            .projectionTransition = 0,
+            .fallbackMatrix = mainMatrix,
+            .clipAntimeridian = false};
 }
 
 } // namespace mln

@@ -1334,3 +1334,24 @@ TEST(TransformState, ProjectionDataMatchesTileMatrix) {
         }
     }
 }
+
+TEST(TransformState, ProjectionDataMercatorFields) {
+    Transform transform;
+    transform.resize({512, 512});
+    transform.jumpTo(CameraOptions().withCenter(LatLng{10, 20}).withZoom(5.0).withPitch(20.0).withBearing(30.0));
+    const TransformState& state = transform.getState();
+
+    for (const auto& tileID :
+         {UnwrappedTileID{0, 0, 0}, UnwrappedTileID{3, 5, 2}, UnwrappedTileID{-1, CanonicalTileID{2, 1, 1}}}) {
+        const ProjectionData data = state.getProjectionData(tileID);
+        const double tileScale = static_cast<double>(1u << tileID.canonical.z);
+        EXPECT_EQ(data.mainMatrix, data.fallbackMatrix);
+        EXPECT_EQ(tileID.canonical.x / tileScale, data.tileMercatorCoords[0]);
+        EXPECT_EQ(tileID.canonical.y / tileScale, data.tileMercatorCoords[1]);
+        EXPECT_EQ(1.0 / tileScale / util::EXTENT, data.tileMercatorCoords[2]);
+        EXPECT_EQ(1.0 / tileScale / util::EXTENT, data.tileMercatorCoords[3]);
+        EXPECT_EQ((vec4{{0, 0, 0, 0}}), data.clippingPlane);
+        EXPECT_EQ(0.0, data.projectionTransition);
+        EXPECT_FALSE(data.clipAntimeridian);
+    }
+}
