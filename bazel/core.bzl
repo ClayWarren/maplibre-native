@@ -282,6 +282,7 @@ MLN_CORE_SOURCE = [
     "src/mln/renderer/render_source.hpp",
     "src/mln/renderer/render_source_observer.hpp",
     "src/mln/renderer/render_static_data.cpp",
+    "src/mln/renderer/globe_tile_mesh.hpp",
     "src/mln/renderer/render_static_data.hpp",
     "src/mln/renderer/render_tile.cpp",
     "src/mln/renderer/render_tile.hpp",
