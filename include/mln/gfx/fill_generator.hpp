@@ -42,7 +42,9 @@ void generateFillAndOutineBuffers(const GeometryCollection& geometry,
                                   gfx::IndexVector<gfx::Triangles>& lineIndexes,
                                   SegmentVector& lineSegments,
                                   gfx::IndexVector<gfx::Lines>& basicLineIndexes,
-                                  SegmentVector& basicLineSegments);
+                                  SegmentVector& basicLineSegments,
+                                  const CanonicalTileID& canonical,
+                                  uint32_t subdivisionGranularity = 1);
 
 } // namespace gfx
 } // namespace mln

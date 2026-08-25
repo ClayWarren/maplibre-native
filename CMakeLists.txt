@@ -445,6 +445,8 @@ list(APPEND INCLUDE_FILES
     ${PROJECT_SOURCE_DIR}/include/mln/util/size.hpp
     ${PROJECT_SOURCE_DIR}/include/mln/util/string_indexer.hpp
     ${PROJECT_SOURCE_DIR}/include/mln/util/string.hpp
+    ${PROJECT_SOURCE_DIR}/include/mln/util/subdivision.hpp
+    ${PROJECT_SOURCE_DIR}/include/mln/util/subdivision_granularity.hpp
     ${PROJECT_SOURCE_DIR}/include/mln/util/symbol_error_observer.hpp
     ${PROJECT_SOURCE_DIR}/include/mln/util/thread.hpp
     ${PROJECT_SOURCE_DIR}/include/mln/util/tile_server_options.hpp
@@ -989,6 +991,7 @@ list(APPEND SRC_FILES
     ${PROJECT_SOURCE_DIR}/src/mln/util/stopwatch.cpp
     ${PROJECT_SOURCE_DIR}/src/mln/util/stopwatch.hpp
     ${PROJECT_SOURCE_DIR}/src/mln/util/string.cpp
+    ${PROJECT_SOURCE_DIR}/src/mln/util/subdivision.cpp
     ${PROJECT_SOURCE_DIR}/src/mln/util/string_indexer.cpp
     ${PROJECT_SOURCE_DIR}/src/mln/util/thread.cpp
     ${PROJECT_SOURCE_DIR}/src/mln/util/thread_local.hpp
