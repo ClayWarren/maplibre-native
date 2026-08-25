@@ -444,6 +444,7 @@ void RenderSymbolLayer::update(gfx::ShaderRegistry& shaders,
                                const PaintParameters&,
                                const RenderTree&,
                                UniqueChangeRequestVec& changes) {
+    updateProjectionVariant(state);
     if (!renderTiles || renderTiles->empty() || passes == RenderPass::None) {
         removeAllDrawables();
         return;
@@ -788,7 +789,7 @@ void RenderSymbolLayer::update(gfx::ShaderRegistry& shaders,
             }
 
             const auto shader = std::static_pointer_cast<gfx::ShaderProgramBase>(
-                shaderGroup->getOrCreateShader(context, propertiesAsUniforms, posOffsetAttribName));
+                shaderGroup->getOrCreateShader(context, propertiesAsUniforms, posOffsetAttribName, projectionVariant));
             if (!shader) {
                 return;
             }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mln/util/mat4.hpp>
+#include <mln/map/tile_projector.hpp>
 #include <mln/gfx/vertex_buffer.hpp>
 #include <mln/renderer/buckets/symbol_bucket.hpp>
 
@@ -40,17 +41,49 @@ struct PlacedGlyph {
 };
 
 float evaluateSizeForFeature(const ZoomEvaluatedSize& zoomEvaluatedSize, const PlacedSymbol& placedSymbol);
-mat4 getLabelPlaneMatrix(
-    const mat4& posMatrix, bool pitchWithMap, bool rotateWithMap, const TransformState& state, float pixelsToTileUnits);
-mat4 getGlCoordMatrix(
-    const mat4& posMatrix, bool pitchWithMap, bool rotateWithMap, const TransformState& state, float pixelsToTileUnits);
+void getTileSkewVectors(const TransformState& state, vec2& vecEast, vec2& vecSouth);
+
+/// Tile units to the label plane: the pitched map plane in pixels (a matrix), or, for the shader, clip space to
+/// viewport pixels once the tile point has been projected.
+mat4 getLabelPlaneMatrix(bool pitchWithMap, bool rotateWithMap, const TransformState& state, float pixelsToTileUnits);
+/// Label plane back to tile units (pitched) or viewport pixels to clip space; the shader projects the former.
+mat4 getGlCoordMatrix(bool pitchWithMap, bool rotateWithMap, const TransformState& state, float pixelsToTileUnits);
 
 using PointAndCameraDistance = std::pair<Point<float>, float>;
 PointAndCameraDistance project(const Point<float>& point, const mat4& matrix);
 
+/// Projects tile points to the label plane a symbol is laid out in, through the tile's projection.
+class LabelPlaneProjector {
+public:
+    LabelPlaneProjector(const TileProjector&,
+                        bool pitchWithMap,
+                        bool rotateWithMap,
+                        float pixelsToTileUnits,
+                        Point<float> translation = {0, 0});
+
+    /// Tile units to the label plane; distance and occlusion come from the projection.
+    ProjectedTilePoint project(const Point<float>& tilePoint) const;
+    /// Label plane to clip space, for orientation checks.
+    Point<float> toClipSpace(const Point<float>& labelPlanePoint) const;
+    /// Tile units straight to clip space.
+    ProjectedTilePoint toClipSpaceFromTile(const Point<float>& tilePoint) const;
+
+    const TileProjector& getTile() const { return tile; }
+    bool getPitchWithMap() const { return pitchWithMap; }
+
+private:
+    TileProjector tile;
+    bool pitchWithMap;
+    Point<float> translation;
+    mat4 pitchedLabelPlaneMatrix;
+    mat4 pitchedLabelPlaneMatrixInverse;
+    float width;
+    float height;
+};
+
 void reprojectLineLabels(gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttributes>>&,
                          const std::vector<PlacedSymbol>&,
-                         const mat4& posMatrix,
+                         const TileProjector&,
                          bool pitchWithMap,
                          bool rotateWithMap,
                          bool keepUpright,
@@ -65,7 +98,7 @@ std::optional<std::pair<PlacedGlyph, PlacedGlyph>> placeFirstAndLastGlyph(float 
                                                                           const Point<float>& anchorPoint,
                                                                           const Point<float>& tileAnchorPoint,
                                                                           const PlacedSymbol& symbol,
-                                                                          const mat4& labelPlaneMatrix,
+                                                                          const LabelPlaneProjector&,
                                                                           bool returnTileDistance);
 
 void hideGlyphs(std::size_t numGlyphs,

@@ -363,4 +363,29 @@ ProjectionData VerticalPerspectiveProjection::getProjectionData(const TransformS
             .clipAntimeridian = tileID.canonical.z == 0};
 }
 
+ProjectedTilePoint VerticalPerspectiveProjection::projectTilePoint(const ProjectionData& data,
+                                                                   const UnwrappedTileID& tileID,
+                                                                   const Point<double>& point) const {
+    const vec3 sphere = tileCoordinatesToSphere(point, tileID);
+    vec4 pos = {{sphere[0], sphere[1], sphere[2], 1}};
+    matrix::transformMat4(pos, pos, data.mainMatrix);
+    const auto& plane = data.clippingPlane;
+    const double side = plane[0] * sphere[0] + plane[1] * sphere[1] + plane[2] * sphere[2] + plane[3];
+    return {.point = {pos[0] / pos[3], pos[1] / pos[3]}, .signedDistanceFromCamera = pos[3], .occluded = side < 0.0};
+}
+
+double VerticalPerspectiveProjection::circleRadiusCorrection(const TransformState& state) const {
+    return std::cos(state.getLatLng().latitude() * std::numbers::pi / 180.0);
+}
+
+double VerticalPerspectiveProjection::pitchedTextCorrection(const TransformState& state,
+                                                            const Point<double>& tileAnchor,
+                                                            const UnwrappedTileID& tileID) const {
+    const double scale = 1.0 / static_cast<double>(1ull << tileID.canonical.z);
+    const double mercatorY = tileAnchor.y / util::EXTENT * scale + tileID.canonical.y * scale;
+    const double latitude = 2.0 * std::atan(std::exp(std::numbers::pi - (mercatorY * std::numbers::pi * 2.0))) -
+                            std::numbers::pi * 0.5;
+    return circleRadiusCorrection(state) / std::cos(latitude);
+}
+
 } // namespace mln

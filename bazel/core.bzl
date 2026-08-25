@@ -199,6 +199,7 @@ MLN_CORE_SOURCE = [
     "src/mln/map/mercator_projection.cpp",
     "src/mln/map/mercator_projection.hpp",
     "src/mln/map/projection_base.hpp",
+    "src/mln/map/tile_projector.hpp",
     "src/mln/map/vertical_perspective_projection.cpp",
     "src/mln/map/vertical_perspective_projection.hpp",
     "src/mln/map/transform.cpp",

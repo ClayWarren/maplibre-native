@@ -20,6 +20,14 @@ struct ProjectionData {
     double depthOffset = 0;
 };
 
+/// A tile point in clip space, as the vertex shaders would place it.
+struct ProjectedTilePoint {
+    Point<double> point;
+    double signedDistanceFromCamera = 0;
+    /// Behind the planet's horizon; never true on Mercator.
+    bool occluded = false;
+};
+
 class ProjectionBase {
 public:
     virtual ~ProjectionBase() = default;
@@ -33,6 +41,21 @@ public:
     virtual ProjectionData getProjectionData(const TransformState&,
                                              const UnwrappedTileID&,
                                              const mat4& mercatorMatrix) const = 0;
+
+    /// The clip-space position of a tile point, computed the way the vertex shaders do it.
+    virtual ProjectedTilePoint projectTilePoint(const ProjectionData&,
+                                                const UnwrappedTileID&,
+                                                const Point<double>&) const = 0;
+
+    /// Scale that keeps map-aligned circles and pitched text the size they have on Mercator at the map center.
+    virtual double circleRadiusCorrection(const TransformState&) const { return 1.0; }
+
+    /// `circleRadiusCorrection` extended to a point away from the center, by its latitude.
+    virtual double pitchedTextCorrection(const TransformState&,
+                                         const Point<double>& tileAnchor,
+                                         const UnwrappedTileID&) const {
+        return 1.0;
+    }
 };
 
 } // namespace mln

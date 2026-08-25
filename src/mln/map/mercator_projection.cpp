@@ -41,4 +41,12 @@ ProjectionData MercatorProjection::getProjectionData(const TransformState&,
             .clipAntimeridian = false};
 }
 
+ProjectedTilePoint MercatorProjection::projectTilePoint(const ProjectionData& data,
+                                                        const UnwrappedTileID&,
+                                                        const Point<double>& point) const {
+    vec4 pos = {{point.x, point.y, 0, 1}};
+    matrix::transformMat4(pos, pos, data.mainMatrix);
+    return {.point = {pos[0] / pos[3], pos[1] / pos[3]}, .signedDistanceFromCamera = pos[3], .occluded = false};
+}
+
 } // namespace mln
