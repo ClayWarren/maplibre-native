@@ -815,6 +815,10 @@ ScreenCoordinate TransformState::latLngToScreenCoordinate(const LatLng& latLng, 
         return {};
     }
 
+    if (isGlobeRendering()) {
+        return VerticalPerspectiveProjection::latLngToScreenCoordinate(*this, latLng, p);
+    }
+
     Point<double> pt = projection->project(latLng, scale) / util::tileSize_D;
     vec4 c = {{pt.x, pt.y, 0, 1}};
     matrix::transformMat4(p, c, getCoordMatrix());
@@ -824,6 +828,14 @@ ScreenCoordinate TransformState::latLngToScreenCoordinate(const LatLng& latLng, 
 TileCoordinate TransformState::screenCoordinateToTileCoordinate(const ScreenCoordinate& point, uint8_t atZoom) const {
     if (size.isEmpty()) {
         return {.p = {}, .z = 0};
+    }
+
+    if (isGlobeRendering()) {
+        const Point<double> p = Projection::project(VerticalPerspectiveProjection::screenCoordinateToLatLng(
+                                                        *this, point, LatLng::Unwrapped),
+                                                    scale) /
+                                util::tileSize_D * static_cast<double>(1 << atZoom);
+        return {.p = {p.x, p.y}, .z = static_cast<double>(atZoom)};
     }
 
     float targetZ = 0;
@@ -856,6 +868,9 @@ TileCoordinate TransformState::screenCoordinateToTileCoordinate(const ScreenCoor
 }
 
 LatLng TransformState::screenCoordinateToLatLng(const ScreenCoordinate& point, LatLng::WrapMode wrapMode) const {
+    if (isGlobeRendering()) {
+        return VerticalPerspectiveProjection::screenCoordinateToLatLng(*this, point, wrapMode);
+    }
     auto coord = screenCoordinateToTileCoordinate(point, 0);
     return projection->unproject(coord.p, 1. / util::tileSize_D, wrapMode);
 }
@@ -903,6 +918,13 @@ bool TransformState::constrainScreen(double& scale_, double& lat, double& lon) c
 
 void TransformState::constrain(double& scale_, double& x_, double& y_) const {
     if (constrainMode == ConstrainMode::None || constrainMode == ConstrainMode::Screen) {
+        return;
+    }
+
+    // The globe has no off-world area: the poles stay reachable and only the Mercator range bounds the center.
+    if (isGlobeRendering()) {
+        const double halfWorld = scale_ * util::tileSize_D / 2;
+        y_ = std::max(-halfWorld, std::min(y_, halfWorld));
         return;
     }
 
@@ -1051,6 +1073,14 @@ ScreenCoordinate TransformState::getCenterOffset() const {
 }
 
 void TransformState::moveLatLng(const LatLng& latLng, const ScreenCoordinate& anchor) {
+    if (isGlobeRendering()) {
+        if (const auto center = VerticalPerspectiveProjection::centerForLocationAtPoint(*this, latLng, anchor)) {
+            const double zoom = getZoom() + VerticalPerspectiveProjection::zoomAdjustment(getLatLng().latitude(),
+                                                                                          center->latitude());
+            setLatLngZoom(*center, zoom);
+        }
+        return;
+    }
     auto centerCoord = Projection::project(getLatLng(LatLng::Unwrapped), scale);
     auto latLngCoord = Projection::project(latLng, scale);
     auto anchorCoord = Projection::project(screenCoordinateToLatLng(anchor), scale);

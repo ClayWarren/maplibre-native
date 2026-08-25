@@ -1,5 +1,6 @@
 #include <mln/map/camera.hpp>
 #include <mln/map/transform.hpp>
+#include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/util/constants.hpp>
 #include <mln/util/mat4.hpp>
 #include <mln/util/math.hpp>
@@ -117,6 +118,9 @@ void Transform::easeTo(const CameraOptions& inputCamera, const AnimationOptions&
     }
 
     double zoom = camera.zoom.value_or(getZoom());
+    if (!camera.zoom && camera.center && state.isGlobeRendering()) {
+        zoom += VerticalPerspectiveProjection::zoomAdjustment(getLatLng().latitude(), camera.center->latitude());
+    }
     state.constrainCameraAndZoomToBounds(camera, zoom);
 
     const EdgeInsets& padding = camera.padding.value_or(state.getEdgeInsets());
