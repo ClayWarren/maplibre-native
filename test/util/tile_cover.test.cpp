@@ -1,6 +1,7 @@
 #include <mln/util/tile_cover.hpp>
 #include <mln/util/geo.hpp>
 #include <mln/map/transform.hpp>
+#include <mln/style/projection_definition.hpp>
 #include <mln/math/angles.hpp>
 
 #include <algorithm>
@@ -628,4 +629,42 @@ TEST(TileCover, DISABLED_FuzzLine) {
         while (tc.next()) {
         };
     }
+}
+
+TEST(TileCover, GlobeHidesTheFarSide) {
+    Transform transform;
+    transform.resize({512, 512});
+    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective"));
+    transform.jumpTo(CameraOptions().withCenter(LatLng{0.0, 0.0}).withZoom(3.0));
+    ASSERT_TRUE(transform.getState().isGlobeRendering());
+
+    const auto cover = util::tileCover({transform.getState()}, 3, zoomRange);
+    const auto has = [&](uint32_t x, uint32_t y) {
+        return std::ranges::find(cover, OverscaledTileID{3, x, y}) != cover.end();
+    };
+    // The four tiles around null island come first, nearest the center.
+    EXPECT_TRUE(has(3, 3));
+    EXPECT_TRUE(has(4, 3));
+    EXPECT_TRUE(has(3, 4));
+    EXPECT_TRUE(has(4, 4));
+    EXPECT_EQ(3, cover.front().canonical.z);
+    // Tiles on the far side of the planet (lng 135..180 at the equator) are not covered.
+    EXPECT_FALSE(has(7, 3));
+    EXPECT_FALSE(has(0, 4));
+    EXPECT_LT(cover.size(), 64u);
+
+    // At zoom 5 the frustum, not just the horizon, bounds the cover: a handful of tiles, not the whole hemisphere.
+    transform.jumpTo(CameraOptions().withZoom(5.0));
+    const auto closeCover = util::tileCover({transform.getState()}, 5, zoomRange);
+    EXPECT_GE(closeCover.size(), 4u);
+    EXPECT_LT(closeCover.size(), 60u);
+    EXPECT_EQ(5, closeCover.front().canonical.z);
+}
+
+TEST(TileCover, GlobeZoomZeroIsTheWholePlanet) {
+    Transform transform;
+    transform.resize({512, 512});
+    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective"));
+    transform.jumpTo(CameraOptions().withCenter(LatLng{40.0, 10.0}).withZoom(0.0));
+    EXPECT_EQ((std::vector<OverscaledTileID>{{0, 0, 0}}), util::tileCover({transform.getState()}, 0, zoomRange));
 }

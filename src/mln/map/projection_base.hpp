@@ -51,9 +51,7 @@ public:
     virtual double circleRadiusCorrection(const TransformState&) const { return 1.0; }
 
     /// `circleRadiusCorrection` extended to a point away from the center, by its latitude.
-    virtual double pitchedTextCorrection(const TransformState&,
-                                         const Point<double>& tileAnchor,
-                                         const UnwrappedTileID&) const {
+    virtual double pitchedTextCorrection(const TransformState&, const Point<double>&, const UnwrappedTileID&) const {
         return 1.0;
     }
 };
