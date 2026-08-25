@@ -1,3 +1,5 @@
+#include <cmath>
+#include <mln/util/constants.hpp>
 #include <mln/renderer/layers/circle_layer_tweaker.hpp>
 
 #include <mln/gfx/context.hpp>
@@ -92,6 +94,11 @@ void CircleLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamete
 #endif
 
         const auto pixelsToTileUnits = tileID.pixelsToTileUnits(1.0f, zoom);
+        // Radians per pixel on the sphere; GL JS `globeExtrudeScale`.
+        const auto globeExtrudeScale = static_cast<float>(
+            pixelsToTileUnits / (util::EXTENT * static_cast<double>(1ull << tileID.canonical.z)) * util::M2PI *
+            (parameters.state.isGlobeRendering() ? std::cos(util::deg2rad(parameters.state.getLatLng().latitude()))
+                                                 : 1.0));
         const auto extrudeScale = pitchWithMap ? std::array<float, 2>{pixelsToTileUnits, pixelsToTileUnits}
                                                : parameters.pixelsToGLUnits;
 
@@ -111,7 +118,7 @@ void CircleLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamete
             .stroke_color_t = std::get<0>(binders->get<CircleStrokeColor>()->interpolationFactor(zoom)),
             .stroke_width_t = std::get<0>(binders->get<CircleStrokeWidth>()->interpolationFactor(zoom)),
             .stroke_opacity_t = std::get<0>(binders->get<CircleStrokeOpacity>()->interpolationFactor(zoom)),
-            .pad1 = 0,
+            .globe_extrude_scale = globeExtrudeScale,
             .pad2 = 0,
             .pad3 = 0
         };
