@@ -1,6 +1,6 @@
 #include <mln/renderer/layers/render_background_layer.hpp>
 #include <mln/util/subdivision_granularity.hpp>
-#include <mln/util/tile_mesh.hpp>
+#include <mln/renderer/globe_tile_mesh.hpp>
 #include <mln/gfx/context.hpp>
 #include <mln/gfx/cull_face_mode.hpp>
 #include <mln/map/transform_state.hpp>
@@ -198,23 +198,6 @@ void RenderBackgroundLayer::update(gfx::ShaderRegistry& shaders,
     const auto indexes = RenderStaticData::quadTriangleIndices();
     const auto segs = RenderStaticData::tileTriangleSegments();
 
-    // On the globe the tile is a grid with pole caps, so the vertex shader can bend it onto the sphere.
-    const auto globeMesh = [&](const OverscaledTileID& tileID) {
-        const auto& canonical = tileID.canonical;
-        const util::TileMesh mesh = util::createTileMesh(
-            {.granularity = SubdivisionGranularitySetting::globe().tile.getGranularityForZoomLevel(canonical.z),
-             .generateBorders = false,
-             .extendToNorthPole = canonical.y == 0,
-             .extendToSouthPole = canonical.y == (1u << canonical.z) - 1});
-        std::vector<std::uint8_t> raw(mesh.vertices.size() * sizeof(int16_t));
-        std::memcpy(raw.data(), mesh.vertices.data(), raw.size());
-        std::vector<uint16_t> meshIndexes(mesh.indices.begin(), mesh.indices.end());
-        SegmentVector meshSegments;
-        meshSegments.emplace_back(0, 0, mesh.vertices.size() / 2, mesh.indices.size());
-        return std::make_tuple(
-            std::move(raw), mesh.vertices.size() / 2, std::move(meshIndexes), std::move(meshSegments));
-    };
-
     std::unique_ptr<gfx::DrawableBuilder> builder;
 
     // Remove drawables for tiles that are no longer in the cover set.
@@ -243,9 +226,9 @@ void RenderBackgroundLayer::update(gfx::ShaderRegistry& shaders,
 
         builder->setVertexAttrId(idBackgroundPosVertexAttribute);
         if (projectionVariant == gfx::ProjectionVariant::Globe) {
-            auto [raw, count, meshIndexes, meshSegments] = globeMesh(tileID);
-            builder->setRawVertices(std::move(raw), count, gfx::AttributeDataType::Short2);
-            builder->setSegments(gfx::Triangles(), meshIndexes, meshSegments.data(), meshSegments.size());
+            auto mesh = rawGlobeTileMesh(tileID.canonical, false);
+            builder->setRawVertices(std::move(mesh.vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);
+            builder->setSegments(gfx::Triangles(), std::move(mesh.indices), mesh.segments.data(), mesh.segments.size());
         } else {
             auto verticesCopy = rawVertices;
             builder->setRawVertices(std::move(verticesCopy), vertexCount, gfx::AttributeDataType::Short2);

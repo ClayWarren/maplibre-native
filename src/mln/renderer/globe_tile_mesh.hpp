@@ -9,7 +9,10 @@
 #include <mln/util/tile_mesh.hpp>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <vector>
 
 namespace mln {
 
@@ -41,5 +44,28 @@ struct GlobeTileMesh {
         segments.emplace_back(0, 0, vertices->elements(), indices->elements());
     }
 };
+
+/// The same grid as raw `Short2` positions, for drawables built from raw vertex bytes.
+struct RawGlobeTileMesh {
+    std::vector<std::uint8_t> vertices;
+    std::size_t vertexCount = 0;
+    std::vector<uint16_t> indices;
+    SegmentVector segments;
+};
+
+inline RawGlobeTileMesh rawGlobeTileMesh(const CanonicalTileID& canonical, bool generateBorders) {
+    const util::TileMesh mesh = util::createTileMesh(
+        {.granularity = SubdivisionGranularitySetting::globe().tile.getGranularityForZoomLevel(canonical.z),
+         .generateBorders = generateBorders,
+         .extendToNorthPole = canonical.y == 0,
+         .extendToSouthPole = canonical.y == (1u << canonical.z) - 1});
+    RawGlobeTileMesh raw;
+    raw.vertices.resize(mesh.vertices.size() * sizeof(int16_t));
+    std::memcpy(raw.vertices.data(), mesh.vertices.data(), raw.vertices.size());
+    raw.vertexCount = mesh.vertices.size() / 2;
+    raw.indices.assign(mesh.indices.begin(), mesh.indices.end());
+    raw.segments.emplace_back(0, 0, raw.vertexCount, raw.indices.size());
+    return raw;
+}
 
 } // namespace mln
