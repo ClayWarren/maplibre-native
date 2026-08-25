@@ -13,6 +13,7 @@
 #include <mln/renderer/renderer.hpp>
 #include <mln/style/expression/dsl.hpp>
 #include <mln/style/image.hpp>
+#include <mln/style/projection.hpp>
 #include <mln/style/layers/fill_extrusion_layer.hpp>
 #include <mln/style/layers/fill_layer.hpp>
 #include <mln/style/layers/line_layer.hpp>
@@ -349,6 +350,7 @@ GLFWView::GLFWView(bool fullscreen_,
         "- Press `J` to take a snapshot of a current map with an extrusions "
         "overlay.\n");
     printf("- Press `Y` to start a camera fly-by demo\n");
+    printf("- Press `F9` to toggle between the globe and Mercator\n");
     printf("\n");
     printf(
         "- Press `1` through `6` to add increasing numbers of point "
@@ -648,6 +650,15 @@ void GLFWView::onKey(GLFWwindow *window, int key, int /*scancode*/, int action, 
             } break;
             case GLFW_KEY_G: {
                 view->toggleLocationIndicatorLayer();
+            } break;
+            case GLFW_KEY_F9: {
+                auto &style = view->map->getStyle();
+                const auto *current = style.getProjection();
+                const bool globe = current && current->getType().isConstant() &&
+                                   current->getType().asConstant().from == "globe";
+                auto projection = std::make_unique<mln::style::Projection>();
+                projection->setType(mln::ProjectionDefinition(globe ? "mercator" : "globe"));
+                style.setProjection(std::move(projection));
             } break;
             case GLFW_KEY_Y: {
                 view->freeCameraDemoPhase = 0;
