@@ -67,7 +67,19 @@ StyleProperty Projection::getProperty(const std::string& name) const {
 
 ProjectionDefinition Projection::Impl::evaluate(float zoom) const {
     const PropertyEvaluationParameters parameters(zoom);
-    return type.evaluate(PropertyEvaluator<ProjectionDefinition>(parameters, Projection::getDefaultType()));
+    const auto definition = type.evaluate(
+        PropertyEvaluator<ProjectionDefinition>(parameters, Projection::getDefaultType()));
+    // `globe` is the vertical perspective up to zoom 11 and Mercator from zoom 12, blended in between.
+    if (definition.from == "globe" && definition.to == "globe") {
+        if (zoom <= 11) {
+            return ProjectionDefinition("vertical-perspective");
+        }
+        if (zoom >= 12) {
+            return ProjectionDefinition("mercator");
+        }
+        return ProjectionDefinition("vertical-perspective", "mercator", zoom - 11);
+    }
+    return definition;
 }
 
 } // namespace style

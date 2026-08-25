@@ -29,5 +29,6 @@
     "render-tests/projection/globe/text-pitched-rotated": "globe expectations pending a run on this platform's CI; https://github.com/maplibre/maplibre-native/pull/4525",
     "render-tests/projection/globe/icon-text-translate-map": "globe expectations pending a run on this platform's CI; https://github.com/maplibre/maplibre-native/pull/4525",
     "render-tests/projection/globe/icon-text-translate-viewport": "globe expectations pending a run on this platform's CI; https://github.com/maplibre/maplibre-native/pull/4525",
-    "render-tests/projection/globe/text-line-equator": "globe expectations pending a run on this platform's CI; https://github.com/maplibre/maplibre-native/pull/4525"
+    "render-tests/projection/globe/text-line-equator": "globe expectations pending a run on this platform's CI; https://github.com/maplibre/maplibre-native/pull/4525",
+    "render-tests/projection/globe/zoom-transition": "globe expectations pending a run on this platform's CI; https://github.com/maplibre/maplibre-native/pull/4525"
 }

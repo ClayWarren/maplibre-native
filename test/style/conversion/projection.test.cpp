@@ -30,7 +30,12 @@ TEST(StyleConversion, Projection) {
         ASSERT_TRUE(projection);
         ASSERT_TRUE(projection->getType().isConstant());
         ASSERT_EQ(ProjectionDefinition("globe"), projection->getType().asConstant());
-        ASSERT_EQ(ProjectionDefinition("globe", "globe", 1), projection->impl->evaluate(3.f));
+        // The preset is the vertical perspective until zoom 11, Mercator from zoom 12, and blends in between.
+        ASSERT_EQ(ProjectionDefinition("vertical-perspective"), projection->impl->evaluate(3.f));
+        ASSERT_EQ(ProjectionDefinition("vertical-perspective"), projection->impl->evaluate(11.f));
+        ASSERT_EQ(ProjectionDefinition("vertical-perspective", "mercator", 0.5), projection->impl->evaluate(11.5f));
+        ASSERT_EQ(ProjectionDefinition("mercator"), projection->impl->evaluate(12.f));
+        ASSERT_EQ(ProjectionDefinition("mercator"), projection->impl->evaluate(16.f));
     }
 
     {
