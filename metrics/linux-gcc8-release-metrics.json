@@ -1,7 +1,8 @@
 {
     "base_test_path": "tests",
     "cache_path": "cache-metrics.db",
-    "expectation_paths": [],
+    "expectation_paths": [
+    ],
     "ignore_paths": [
         "ignores/platform-all.json",
         "ignores/platform-linux.json",

@@ -29,7 +29,6 @@ struct alignas(16) SymbolDrawableUBO {
     /* 248 */ float opacity_t;
     /* 252 */ float halo_width_t;
     /* 256 */ float halo_blur_t;
-
     /* 260 */ /*bool*/ int is_along_line;
     /* 264 */ /*bool*/ int is_variable_anchor;
     /* 268 */ float pitched_scale;

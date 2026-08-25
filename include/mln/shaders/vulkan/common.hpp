@@ -125,6 +125,10 @@ struct ProjectionUBO {
     float pad2;
 };
 
+// Pole vertices carry these sentinel Y values in their raw position.
+#define GLOBE_POLE_NORTH_Y -32767.5
+#define GLOBE_POLE_SOUTH_Y 32766.5
+
 #ifdef PROJECTION_GLOBE
 
 #define GLOBE_RADIUS 6371008.8
@@ -134,17 +138,17 @@ struct ProjectionUBO {
 vec3 projectToSphere(vec2 translatedPos, vec2 rawPos, ProjectionUBO projection) {
     const vec2 mercator_pos = projection.tile_mercator_coords.xy + projection.tile_mercator_coords.zw * translatedPos;
     const float spherical_x = mercator_pos.x * GLOBE_PI * 2.0 + GLOBE_PI;
-    // sin/cos of the latitude from the Mercator Y via the tangent half-angle identities: no atan, exact near the equator.
+    // sin/cos of the latitude from the Mercator Y via the tangent half-angle identities: no atan, and float32 precision survives near the equator.
     const float t = exp(GLOBE_PI - (mercator_pos.y * GLOBE_PI * 2.0));
     const float t2 = t * t;
     const float denom = t2 + 1.0;
     const float sin_sy = (t2 - 1.0) / denom;
     const float cos_sy = (2.0 * t) / denom;
     vec3 pos = vec3(sin(spherical_x) * cos_sy, sin_sy, cos(spherical_x) * cos_sy);
-    if (rawPos.y < -32767.5) {
+    if (rawPos.y < GLOBE_POLE_NORTH_Y) {
         pos = vec3(0.0, 1.0, 0.0);
     }
-    if (rawPos.y > 32766.5) {
+    if (rawPos.y > GLOBE_POLE_SOUTH_Y) {
         pos = vec3(0.0, -1.0, 0.0);
     }
     return pos;
@@ -193,7 +197,7 @@ vec4 interpolateProjection(vec2 posInTile, vec3 spherePos, float elevation, Proj
     vec4 result = globePosition;
     result.z = mix(0.0, globePosition.z, clamp((projection.projection_transition - z_globeness_threshold) / (1.0 - z_globeness_threshold), 0.0, 1.0));
     result.xyw = mix(flatPosition.xyw, globePosition.xyw, projection.projection_transition);
-    if ((posInTile.y < -32767.5) || (posInTile.y > 32766.5)) {
+    if ((posInTile.y < GLOBE_POLE_NORTH_Y) || (posInTile.y > GLOBE_POLE_SOUTH_Y)) {
         result = globePosition;
         const float poles_hidden_anim_percentage = 0.02;
         result.z = mix(globePosition.z, 100.0, pow(max((1.0 - projection.projection_transition) / poles_hidden_anim_percentage, 0.0), 8.0));
@@ -238,7 +242,7 @@ vec4 projectTile(vec2 pos, ProjectionUBO projection) {
 // Pole vertices only exist on the globe; put them behind the near plane so their triangles are clipped.
 vec4 projectTile(vec2 pos, vec2 rawPos, ProjectionUBO projection) {
     vec4 result = projection.matrix * vec4(pos, 0.0, 1.0);
-    if (rawPos.y < -32767.5 || rawPos.y > 32766.5) {
+    if (rawPos.y < GLOBE_POLE_NORTH_Y || rawPos.y > GLOBE_POLE_SOUTH_Y) {
         result.z = -10000000.0;
     }
     return result;

@@ -148,7 +148,9 @@ void main() {
     // multiply a_pos by 0.5, since we had it * 2 in order to sneak in extrusion data
     const vec2 circle_center = floor(in_position * 0.5);
 
+#ifdef PROJECTION_GLOBE
     const ProjectionUBO projection = projectionVector.projection_ubo[constant.ubo_index];
+#endif
     if (props.pitch_with_map) {
 #ifdef PROJECTION_GLOBE
         const vec3 center_vector = projectToSphere(circle_center, vec2(0.0, 0.0), projection);

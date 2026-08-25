@@ -62,7 +62,8 @@ void GlobeDepthPass::update(gfx::ShaderRegistry& shaders,
         return;
     }
     if (!layerGroup) {
-        layerGroup = context.createTileLayerGroup(0, /*initialCapacity=*/64, "globe-depth");
+        constexpr std::size_t initialCapacity = 64;
+        layerGroup = context.createTileLayerGroup(0, initialCapacity, "globe-depth");
     }
 
     const auto zoom = state.getIntegerZoom();

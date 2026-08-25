@@ -158,14 +158,13 @@ fn main(in: VertexInput) -> VertexOutput {
 #ifdef PROJECTION_GLOBE
     let adjustedThickness = projectLineThickness(pos.y, projectionVector[globalIndex.value]);
     let projected_no_extrude = projectTile(pos + offset2 / ratio * adjustedThickness, projectionVector[globalIndex.value]);
-    let base_globe = projectTile(pos + (offset2 + dist) / ratio * adjustedThickness, projectionVector[globalIndex.value]);
-    let projected_extrude = base_globe - projected_no_extrude;
-    let base = base_globe - projected_extrude;
+    let base = projectTile(pos + (offset2 + dist) / ratio * adjustedThickness, projectionVector[globalIndex.value]);
+    let projected_extrude = base - projected_no_extrude;
 #else
     let projected_extrude = drawable.matrix * vec4<f32>(dist / ratio, 0.0, 0.0);
-    let base = drawable.matrix * vec4<f32>(pos + offset2 / ratio, 0.0, 1.0);
+    let base = drawable.matrix * vec4<f32>(pos + offset2 / ratio, 0.0, 1.0) + projected_extrude;
 #endif
-    let clip = base + projected_extrude;
+    let clip = base;
 
     let inv_w = 1.0 / clip.w;
 
@@ -385,24 +384,8 @@ fn main(in: VertexInput) -> VertexOutput {
     let projected_extrude = position_globe - projected_no_extrude;
     let position = position_globe;
 #else
-#ifdef PROJECTION_GLOBE
-    let adjustedThickness = projectLineThickness(pos.y, projectionVector[globalIndex.value]);
-    let projected_no_extrude = projectTile(pos + offset2 / drawable.ratio * adjustedThickness, projectionVector[globalIndex.value]);
-    let position_globe = projectTile(pos + (offset2 + dist) / drawable.ratio * adjustedThickness, projectionVector[globalIndex.value]);
-    let projected_extrude = position_globe - projected_no_extrude;
-    let position = position_globe;
-#else
-#ifdef PROJECTION_GLOBE
-    let adjustedThickness = projectLineThickness(pos.y, projectionVector[globalIndex.value]);
-    let projected_no_extrude = projectTile(pos + offset2 / drawable.ratio * adjustedThickness, projectionVector[globalIndex.value]);
-    let position_globe = projectTile(pos + (offset2 + dist) / drawable.ratio * adjustedThickness, projectionVector[globalIndex.value]);
-    let projected_extrude = position_globe - projected_no_extrude;
-    let position = position_globe;
-#else
     let projected_extrude = drawable.matrix * vec4<f32>(dist / drawable.ratio, 0.0, 0.0);
     let position = drawable.matrix * vec4<f32>(pos + offset2 / drawable.ratio, 0.0, 1.0) + projected_extrude;
-#endif
-#endif
 #endif
 
     // Calculate gamma scale

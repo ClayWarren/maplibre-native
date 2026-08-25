@@ -1,7 +1,7 @@
 #pragma once
 
-#include <mln/shaders/shader_source.hpp>
 #include <mln/shaders/shader_defines.hpp>
+#include <mln/shaders/shader_source.hpp>
 #include <mln/shaders/mtl/shader_program.hpp>
 
 namespace mln {

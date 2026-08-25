@@ -105,7 +105,6 @@ void addOutlineIndices(const std::size_t base,
     lineSegment.indexLength += nVertices * 2;
 }
 
-/// Emits a subdivided polygon: its deduplicated vertex buffer, triangles and outline line lists.
 std::size_t addSubdividedPolygon(const util::SubdivisionResult& subdivided,
                                  gfx::VertexVector<FillLayoutVertex>& fillVertices,
                                  gfx::IndexVector<gfx::Triangles>& fillIndexes,

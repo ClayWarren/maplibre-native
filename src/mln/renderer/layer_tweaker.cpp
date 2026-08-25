@@ -59,6 +59,8 @@ ProjectionData LayerTweaker::getProjectionData(const UnwrappedTileID& tileID,
         tileID,
         getTileMatrix(tileID, parameters, translation, anchor, nearClipped, inViewportPixelUnits, drawable, aligned));
 #if !MLN_RENDER_BACKEND_OPENGL
+    // The same per-layer shift `multiplyWithProjectionMatrix` bakes into the Mercator matrix; the globe applies
+    // it to its own clip Z in the shader. GL keeps its depth range instead.
     if (!drawable.getIs3D() && drawable.getEnableDepth()) {
         data.depthOffset = ((1 + parameters.currentLayer) * PaintParameters::numSublayers -
                             drawable.getSubLayerIndex()) *

@@ -58,10 +58,6 @@ struct GlobalIndexUBO {
 fn main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let drawable = drawableVector[globalIndex.value];
-    let matrix = mat4x4<f32>(drawable.matrix_col0,
-                             drawable.matrix_col1,
-                             drawable.matrix_col2,
-                             drawable.matrix_col3);
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
     let clip = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
     out.position = clip;
@@ -148,10 +144,6 @@ fn main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
     let drawable = drawableVector[globalIndex.value];
-    let matrix = mat4x4<f32>(drawable.matrix_col0,
-                             drawable.matrix_col1,
-                             drawable.matrix_col2,
-                             drawable.matrix_col3);
 
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
 

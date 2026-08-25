@@ -214,7 +214,6 @@ void FillExtrusionBucket::addFeature(const GeometryTileFeature& feature,
                 const Point<double> p{static_cast<double>(roof->vertices[i]),
                                       static_cast<double>(roof->vertices[i + 1])};
 #if MLN_USE_FILL_EXTRUSION_INSTANCING
-                // Roof vertices are not outline instances.
                 vertices.emplace_back(layoutVertex(p, 0, true));
 #else
                 vertices.emplace_back(FillExtrusionBucket::layoutVertex(p, 0, 0, 1, 0));

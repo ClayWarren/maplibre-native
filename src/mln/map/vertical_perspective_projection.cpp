@@ -1,5 +1,6 @@
 #include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/map/transform_state.hpp>
+#include <mln/math/angles.hpp>
 #include <mln/tile/tile_id.hpp>
 #include <mln/util/constants.hpp>
 #include <mln/util/projection.hpp>
@@ -131,8 +132,8 @@ void VerticalPerspectiveProjection::tileMatrix(mat4& matrix, const UnwrappedTile
     matrix::identity(matrix);
     matrix::translate(matrix,
                       matrix,
-                      int64_t(tileID.canonical.x + tileID.wrap * static_cast<int64_t>(tileScale)) * s,
-                      int64_t(tileID.canonical.y) * s,
+                      static_cast<int64_t>(tileID.canonical.x + tileID.wrap * static_cast<int64_t>(tileScale)) * s,
+                      static_cast<int64_t>(tileID.canonical.y) * s,
                       0);
     matrix::scale(matrix, matrix, s / util::EXTENT, s / util::EXTENT, 1);
 }
@@ -375,7 +376,7 @@ ProjectedTilePoint VerticalPerspectiveProjection::projectTilePoint(const Project
 }
 
 double VerticalPerspectiveProjection::circleRadiusCorrection(const TransformState& state) const {
-    return std::cos(state.getLatLng().latitude() * std::numbers::pi / 180.0);
+    return std::cos(util::deg2rad(state.getLatLng().latitude()));
 }
 
 double VerticalPerspectiveProjection::pitchedTextCorrection(const TransformState& state,

@@ -43,10 +43,9 @@ struct PlacedGlyph {
 float evaluateSizeForFeature(const ZoomEvaluatedSize& zoomEvaluatedSize, const PlacedSymbol& placedSymbol);
 void getTileSkewVectors(const TransformState& state, vec2& vecEast, vec2& vecSouth);
 
-/// Tile units to the label plane: the pitched map plane in pixels (a matrix), or, for the shader, clip space to
-/// viewport pixels once the tile point has been projected.
+/// Pitched labels: tile units to the pitched map plane in pixels. Viewport labels: clip space to viewport pixels.
 mat4 getLabelPlaneMatrix(bool pitchWithMap, bool rotateWithMap, const TransformState& state, float pixelsToTileUnits);
-/// Label plane back to tile units (pitched) or viewport pixels to clip space; the shader projects the former.
+/// The inverse for the shader: pitched labels back to tile units, viewport labels to clip space.
 mat4 getGlCoordMatrix(bool pitchWithMap, bool rotateWithMap, const TransformState& state, float pixelsToTileUnits);
 
 using PointAndCameraDistance = std::pair<Point<float>, float>;
@@ -67,9 +66,6 @@ public:
     Point<float> toClipSpace(const Point<float>& labelPlanePoint) const;
     /// Tile units straight to clip space.
     ProjectedTilePoint toClipSpaceFromTile(const Point<float>& tilePoint) const;
-
-    const TileProjector& getTile() const { return tile; }
-    bool getPitchWithMap() const { return pitchWithMap; }
 
 private:
     TileProjector tile;

@@ -95,6 +95,10 @@ struct ProjectionUBO {
     pad2: f32,
 };
 
+// Pole vertices carry these sentinel Y values in their raw position.
+const GLOBE_POLE_NORTH_Y: f32 = -32767.5;
+const GLOBE_POLE_SOUTH_Y: f32 = 32766.5;
+
 #ifdef PROJECTION_GLOBE
 
 const GLOBE_RADIUS: f32 = 6371008.8;
@@ -104,17 +108,17 @@ const GLOBE_PI: f32 = 3.1415926535897932384626433832795;
 fn projectToSphere(translatedPos: vec2<f32>, rawPos: vec2<f32>, projection: ProjectionUBO) -> vec3<f32> {
     let mercator_pos = projection.tile_mercator_coords.xy + projection.tile_mercator_coords.zw * translatedPos;
     let spherical_x = mercator_pos.x * GLOBE_PI * 2.0 + GLOBE_PI;
-    // sin/cos of the latitude from the Mercator Y via the tangent half-angle identities: no atan, exact near the equator.
+    // sin/cos of the latitude from the Mercator Y via the tangent half-angle identities: no atan, and float32 precision survives near the equator.
     let t = exp(GLOBE_PI - (mercator_pos.y * GLOBE_PI * 2.0));
     let t2 = t * t;
     let denom = t2 + 1.0;
     let sin_sy = (t2 - 1.0) / denom;
     let cos_sy = (2.0 * t) / denom;
     var pos = vec3<f32>(sin(spherical_x) * cos_sy, sin_sy, cos(spherical_x) * cos_sy);
-    if (rawPos.y < -32767.5) {
+    if (rawPos.y < GLOBE_POLE_NORTH_Y) {
         pos = vec3<f32>(0.0, 1.0, 0.0);
     }
-    if (rawPos.y > 32766.5) {
+    if (rawPos.y > GLOBE_POLE_SOUTH_Y) {
         pos = vec3<f32>(0.0, -1.0, 0.0);
     }
     return pos;
@@ -166,7 +170,7 @@ fn interpolateProjection(posInTile: vec2<f32>, spherePos: vec3<f32>, elevation: 
     result.x = xyw.x;
     result.y = xyw.y;
     result.w = xyw.z;
-    if ((posInTile.y < -32767.5) || (posInTile.y > 32766.5)) {
+    if ((posInTile.y < GLOBE_POLE_NORTH_Y) || (posInTile.y > GLOBE_POLE_SOUTH_Y)) {
         result = globePosition;
         let poles_hidden_anim_percentage = 0.02;
         result.z = mix(globePosition.z, 100.0, pow(max((1.0 - projection.projection_transition) / poles_hidden_anim_percentage, 0.0), 8.0));
@@ -211,7 +215,7 @@ fn projectTile(pos: vec2<f32>, projection: ProjectionUBO) -> vec4<f32> {
 // Pole vertices only exist on the globe; put them behind the near plane so their triangles are clipped.
 fn projectTileRaw(pos: vec2<f32>, rawPos: vec2<f32>, projection: ProjectionUBO) -> vec4<f32> {
     var result = projection.matrix * vec4<f32>(pos, 0.0, 1.0);
-    if (rawPos.y < -32767.5 || rawPos.y > 32766.5) {
+    if (rawPos.y < GLOBE_POLE_NORTH_Y || rawPos.y > GLOBE_POLE_SOUTH_Y) {
         result.z = -10000000.0;
     }
     return result;

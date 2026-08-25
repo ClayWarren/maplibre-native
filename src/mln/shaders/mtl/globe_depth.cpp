@@ -7,7 +7,7 @@ namespace shaders {
 using GlobeDepthShaderSource = ShaderSource<BuiltIn::GlobeDepthShader, gfx::Backend::Type::Metal>;
 
 const std::array<AttributeInfo, 1> GlobeDepthShaderSource::attributes = {
-    AttributeInfo{0, gfx::AttributeDataType::Float3, globeDepthUBOCount + 0, idGlobeDepthPosVertexAttribute},
+    AttributeInfo{0, gfx::AttributeDataType::Short2, globeDepthUBOCount + 0, idGlobeDepthPosVertexAttribute},
 };
 const std::array<TextureInfo, 0> GlobeDepthShaderSource::textures = {};
 

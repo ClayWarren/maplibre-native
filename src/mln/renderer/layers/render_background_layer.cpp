@@ -226,6 +226,7 @@ void RenderBackgroundLayer::update(gfx::ShaderRegistry& shaders,
 
         builder->setVertexAttrId(idBackgroundPosVertexAttribute);
         if (projectionVariant == gfx::ProjectionVariant::Globe) {
+            // The background is not depth tested, so it needs no tile border.
             auto mesh = rawGlobeTileMesh(tileID.canonical, false);
             builder->setRawVertices(std::move(mesh.vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);
             builder->setSegments(gfx::Triangles(), std::move(mesh.indices), mesh.segments.data(), mesh.segments.size());

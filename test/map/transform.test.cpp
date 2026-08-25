@@ -10,7 +10,6 @@
 #include <mln/util/geo.hpp>
 #include <mln/util/projection.hpp>
 #include <mln/util/quaternion.hpp>
-#include <mln/util/tile_coordinate.hpp>
 
 #include <numbers>
 
@@ -1455,14 +1454,14 @@ TEST(GlobeTransform, MoveByPutsTheDraggedPointAtTheCenter) {
         const ScreenCoordinate offset{i % 2 ? 60.0 : -45.0, i % 3 ? 30.0 : -50.0};
         const LatLng expected = transform.screenCoordinateToLatLng({400 - offset.x, 300 - offset.y});
         const double zoomBefore = transform.getZoom();
+        const double latitudeBefore = transform.getLatLng().latitude();
         transform.moveBy(offset);
         EXPECT_NEAR(expected.latitude(), transform.getLatLng().latitude(), 1e-6);
         EXPECT_NEAR(expected.longitude(), transform.getLatLng().longitude(), 1e-6);
         // The planet keeps its apparent size: zoom follows the latitude.
-        EXPECT_NEAR(
-            zoomBefore + VerticalPerspectiveProjection::zoomAdjustment(expected.latitude(), expected.latitude()),
-            transform.getZoom(),
-            1.0);
+        EXPECT_NEAR(zoomBefore + VerticalPerspectiveProjection::zoomAdjustment(latitudeBefore, expected.latitude()),
+                    transform.getZoom(),
+                    1e-6);
     }
 }
 

@@ -2,8 +2,8 @@
 #include <mln/map/map_impl.hpp>
 #include <mln/renderer/update_parameters.hpp>
 #include <mln/storage/file_source.hpp>
-#include <mln/style/style_impl.hpp>
 #include <mln/style/projection_impl.hpp>
+#include <mln/style/style_impl.hpp>
 #include <mln/util/exception.hpp>
 #include <mln/util/logging.hpp>
 #include <mln/util/traits.hpp>

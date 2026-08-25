@@ -286,7 +286,7 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
     const float t = 1.0 - abs(u);
     const float2 offset2 = offset * a_extrude * LINE_NORMAL_SCALE * v_normal.y * float2x2(t, -u, u, t);
 
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
     const float adjustedThickness = projectLineThickness(pos.y, projectionVector[uboIndex]);
     const float4 projected_no_extrude = projectTile(pos + offset2 / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
     const float4 position = projectTile(pos + (offset2 + dist) / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
@@ -469,7 +469,7 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
     const float t = 1.0 - abs(u);
     const float2 offset2 = offset * a_extrude * LINE_NORMAL_SCALE * v_normal.y * float2x2(t, -u, u, t);
 
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
     const float adjustedThickness = projectLineThickness(pos.y, projectionVector[uboIndex]);
     const float4 projected_no_extrude = projectTile(pos + offset2 / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
     const float4 position = projectTile(pos + (offset2 + dist) / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
@@ -658,7 +658,7 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
     const float t = 1.0 - abs(u);
     const float2 offset2 = offset * a_extrude * LINE_NORMAL_SCALE * v_normal.y * float2x2(t, -u, u, t);
 
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
     const float adjustedThickness = projectLineThickness(pos.y, projectionVector[uboIndex]);
     const float4 projected_no_extrude = projectTile(pos + offset2 / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
     const float4 position = projectTile(pos + (offset2 + dist) / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
@@ -911,7 +911,7 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
     const float t = 1.0 - abs(u);
     const float2 offset2 = offset * a_extrude * LINE_NORMAL_SCALE * v_normal.y * float2x2(t, -u, u, t);
 
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
     const float adjustedThickness = projectLineThickness(pos.y, projectionVector[uboIndex]);
     const float4 projected_no_extrude = projectTile(pos + offset2 / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);
     const float4 position = projectTile(pos + (offset2 + dist) / drawable.ratio * adjustedThickness, projectionVector[uboIndex]);

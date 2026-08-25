@@ -8,6 +8,7 @@
 #include <mln/util/tile_cover.hpp>
 #include <mln/util/tile_cover_impl.hpp>
 
+#include <cassert>
 #include <functional>
 #include <limits>
 #include <list>
@@ -161,6 +162,7 @@ int32_t coveringZoomLevel(double zoom, style::SourceType type, uint16_t size) no
 // The globe tile cover: a port of GL JS `coveringTiles` with `GlobeCoveringTilesDetailsProvider`. Tiles are
 // tested against the camera frustum in unit-sphere space with a convex bounding volume each, and against
 // the horizon plane, so the far side of the planet loads nothing.
+namespace {
 namespace globe {
 
 struct ConvexVolume {
@@ -512,8 +514,8 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
             if (node.zoom < minZoom) {
                 continue;
             }
-            const double dx = numTiles * centerCoord[0] - 0.5 - node.x * std::pow(2.0, z - node.zoom);
-            const double dy = numTiles * centerCoord[1] - 0.5 - node.y * std::pow(2.0, z - node.zoom);
+            const double dx = numTiles * centerCoord[0] - 0.5 - static_cast<double>(node.x << (z - node.zoom));
+            const double dy = numTiles * centerCoord[1] - 0.5 - static_cast<double>(node.y << (z - node.zoom));
             result.push_back(
                 {OverscaledTileID(
                      node.zoom == maxZoom ? overscaledZoom : node.zoom, node.wrap, node.zoom, node.x, node.y),
@@ -540,6 +542,7 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
 }
 
 } // namespace globe
+} // namespace
 
 std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
                                         uint8_t z,

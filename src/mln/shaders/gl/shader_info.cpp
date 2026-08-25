@@ -169,8 +169,8 @@ const std::vector<TextureInfo> FillShaderInfo::textures = {};
 using FillOutlineShaderInfo = ShaderInfo<BuiltIn::FillOutlineShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> FillOutlineShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"FillOutlineDrawableUBO", idFillDrawableUBO},
     UniformBlockInfo{"FillEvaluatedPropsUBO", idFillEvaluatedPropsUBO},
 };
@@ -185,8 +185,8 @@ const std::vector<TextureInfo> FillOutlineShaderInfo::textures = {};
 using FillPatternShaderInfo = ShaderInfo<BuiltIn::FillPatternShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> FillPatternShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"FillPatternDrawableUBO", idFillDrawableUBO},
     UniformBlockInfo{"FillPatternTilePropsUBO", idFillTilePropsUBO},
     UniformBlockInfo{"FillEvaluatedPropsUBO", idFillEvaluatedPropsUBO},
@@ -205,8 +205,8 @@ const std::vector<TextureInfo> FillPatternShaderInfo::textures = {
 using FillOutlinePatternShaderInfo = ShaderInfo<BuiltIn::FillOutlinePatternShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> FillOutlinePatternShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"FillOutlinePatternDrawableUBO", idFillDrawableUBO},
     UniformBlockInfo{"FillOutlinePatternTilePropsUBO", idFillTilePropsUBO},
     UniformBlockInfo{"FillEvaluatedPropsUBO", idFillEvaluatedPropsUBO},
@@ -226,8 +226,8 @@ using FillOutlineTriangulatedShaderInfo =
     ShaderInfo<BuiltIn::FillOutlineTriangulatedShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> FillOutlineTriangulatedShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"FillOutlineTriangulatedDrawableUBO", idFillDrawableUBO},
     UniformBlockInfo{"FillEvaluatedPropsUBO", idFillEvaluatedPropsUBO},
 };
@@ -498,8 +498,8 @@ const std::vector<TextureInfo> RasterShaderInfo::textures = {
 using SymbolIconShaderInfo = ShaderInfo<BuiltIn::SymbolIconShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> SymbolIconShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"SymbolDrawableUBO", idSymbolDrawableUBO},
     UniformBlockInfo{"SymbolTilePropsUBO", idSymbolTilePropsUBO},
     UniformBlockInfo{"SymbolEvaluatedPropsUBO", idSymbolEvaluatedPropsUBO},
@@ -520,8 +520,8 @@ const std::vector<TextureInfo> SymbolIconShaderInfo::textures = {
 using SymbolSDFShaderInfo = ShaderInfo<BuiltIn::SymbolSDFShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> SymbolSDFShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"SymbolDrawableUBO", idSymbolDrawableUBO},
     UniformBlockInfo{"SymbolTilePropsUBO", idSymbolTilePropsUBO},
     UniformBlockInfo{"SymbolEvaluatedPropsUBO", idSymbolEvaluatedPropsUBO},
@@ -546,8 +546,8 @@ const std::vector<TextureInfo> SymbolSDFShaderInfo::textures = {
 using SymbolTextAndIconShaderInfo = ShaderInfo<BuiltIn::SymbolTextAndIconShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> SymbolTextAndIconShaderInfo::uniformBlocks = {
-    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
+    UniformBlockInfo{"GlobalPaintParamsUBO", idGlobalPaintParamsUBO},
     UniformBlockInfo{"SymbolDrawableUBO", idSymbolDrawableUBO},
     UniformBlockInfo{"SymbolTilePropsUBO", idSymbolTilePropsUBO},
     UniformBlockInfo{"SymbolEvaluatedPropsUBO", idSymbolEvaluatedPropsUBO},

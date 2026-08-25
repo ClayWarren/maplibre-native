@@ -149,21 +149,21 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
 
     float4 position;
     if (props.pitch_with_map) {
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
         const float3 center_vector = projectToSphere(circle_center, float2(0.0, 0.0), projectionVector[uboIndex]);
         float angle_scale = drawable.globe_extrude_scale;
 #endif
         float2 corner_position = circle_center;
         if (props.scale_with_map) {
             corner_position += scaled_extrude * (radius + stroke_width);
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
             angle_scale *= (radius + stroke_width);
 #endif
         } else {
             // Pitching the circle with the map effectively scales it with the map
             // To counteract the effect for pitch-scale: viewport, we rescale the
             // whole circle based on the pitch scaling effect at its central point
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
             const float4 projected_center = interpolateProjection(circle_center, center_vector, 0.0, projectionVector[uboIndex]);
             angle_scale *= (radius + stroke_width) * (projected_center.w / paintParams.camera_to_center_distance);
 #else
@@ -173,14 +173,14 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
                                (projected_center.w / paintParams.camera_to_center_distance);
         }
 
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
         const float3 corner_vector = globeRotateVector(center_vector, extrude * angle_scale);
         position = interpolateProjection(corner_position, corner_vector, 0.0, projectionVector[uboIndex]);
 #else
         position = drawable.matrix * float4(corner_position, 0, 1);
 #endif
     } else {
-#ifdef PROJECTION_GLOBE
+#if defined(PROJECTION_GLOBE)
         position = projectTile(circle_center, projectionVector[uboIndex]);
         if (position.z / position.w > 1.0) {
             position.xy = float2(10000.0);

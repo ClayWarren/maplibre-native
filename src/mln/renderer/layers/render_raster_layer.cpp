@@ -1,5 +1,4 @@
 #include <mln/renderer/layers/render_raster_layer.hpp>
-#include <mln/renderer/globe_tile_mesh.hpp>
 
 #include <optional>
 #include <mln/renderer/buckets/raster_bucket.hpp>
@@ -205,10 +204,7 @@ void RenderRasterLayer::update(gfx::ShaderRegistry& shaders,
         const bool globe = projectionVariant == gfx::ProjectionVariant::Globe && tileID;
         const bool shared = !globe && !bucket.sharedVertices->empty() && !bucket.sharedTriangles->empty() &&
                             !bucket.segments.empty();
-        std::optional<GlobeTileMesh<RasterLayoutVertex, decltype(&RasterBucket::layoutVertex)>> globeMesh;
-        if (globe) {
-            globeMesh.emplace(tileID->canonical, &RasterBucket::layoutVertex);
-        }
+        const auto* globeMesh = globe ? &globeMeshes.get(tileID->canonical, &RasterBucket::layoutVertex) : nullptr;
         const auto& vertices = globe ? globeMesh->vertices : shared ? bucket.sharedVertices : staticDataVertices;
         const auto& indices = globe ? globeMesh->indices : shared ? bucket.sharedTriangles : staticDataIndices;
         const auto* segments = globe ? &globeMesh->segments : shared ? &bucket.segments : staticDataSegments.get();

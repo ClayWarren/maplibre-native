@@ -47,7 +47,7 @@ void Projection::setType(PropertyValue<ProjectionDefinition> type) {
 std::optional<conversion::Error> Projection::setProperty(const std::string& name,
                                                          const conversion::Convertible& value) {
     if (name != "type") {
-        return conversion::Error{"layer doesn't support this property"};
+        return conversion::Error{"projection doesn't support this property"};
     }
     conversion::Error error;
     const auto type = conversion::convert<PropertyValue<ProjectionDefinition>>(value, error, false, false);
@@ -69,15 +69,17 @@ ProjectionDefinition Projection::Impl::evaluate(float zoom) const {
     const PropertyEvaluationParameters parameters(zoom);
     const auto definition = type.evaluate(
         PropertyEvaluator<ProjectionDefinition>(parameters, Projection::getDefaultType()));
-    // `globe` is the vertical perspective up to zoom 11 and Mercator from zoom 12, blended in between.
+    // `globe` is the vertical perspective up to the first zoom and Mercator from the second, blended in between.
+    constexpr float globeToMercatorStartZoom = 11;
+    constexpr float globeToMercatorEndZoom = 12;
     if (definition.from == "globe" && definition.to == "globe") {
-        if (zoom <= 11) {
+        if (zoom <= globeToMercatorStartZoom) {
             return ProjectionDefinition("vertical-perspective");
         }
-        if (zoom >= 12) {
+        if (zoom >= globeToMercatorEndZoom) {
             return ProjectionDefinition("mercator");
         }
-        return ProjectionDefinition("vertical-perspective", "mercator", zoom - 11);
+        return ProjectionDefinition("vertical-perspective", "mercator", zoom - globeToMercatorStartZoom);
     }
     return definition;
 }
