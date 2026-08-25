@@ -202,12 +202,10 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
     hasVertexEntryPoint = !trimmedVertex.empty();
     hasFragmentEntryPoint = !trimmedFragment.empty();
 
-    // Get the prelude from common.hpp
-    using PreludeShader = shaders::ShaderSource<shaders::BuiltIn::Prelude, gfx::Backend::Type::WebGPU>;
-
+    // The shader group already prepends the common prelude and runs the preprocessor.
     std::string vertexWithPrelude;
     if (hasVertexEntryPoint) {
-        vertexWithPrelude = std::string(PreludeShader::prelude) + "\n" + vertexSource;
+        vertexWithPrelude = vertexSource;
         WGPUShaderSourceWGSL wgslDesc = {};
         wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
         wgslDesc.chain.next = nullptr;
@@ -232,7 +230,7 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
 
     std::string fragmentWithPrelude;
     if (hasFragmentEntryPoint) {
-        fragmentWithPrelude = std::string(PreludeShader::prelude) + "\n" + fragmentSource;
+        fragmentWithPrelude = fragmentSource;
 
         WGPUShaderSourceWGSL wgslDesc = {};
         wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;

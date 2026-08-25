@@ -43,6 +43,7 @@ struct ColorReliefTilePropsUBO {
 
 @group(0) @binding(1) var<uniform> globalIndex: GlobalIndexUBO;
 @group(0) @binding(2) var<storage, read> drawableVector: array<ColorReliefDrawableUBO>;
+@group(0) @binding(4) var<storage, read> projectionVector: array<ProjectionUBO>;
 @group(0) @binding(5) var<storage, read> tilePropsVector: array<ColorReliefTilePropsUBO>;
 
 @vertex
@@ -51,7 +52,8 @@ fn main(in: VertexInput) -> VertexOutput {
     let drawable = drawableVector[globalIndex.value];
     let tileProps = tilePropsVector[globalIndex.value];
 
-    out.position = drawable.matrix * vec4<f32>(f32(in.position.x), f32(in.position.y), 0.0, 1.0);
+    let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
+    out.position = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
 
     let a_pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
     let epsilon = vec2<f32>(1.0, 1.0) / tileProps.dimension;

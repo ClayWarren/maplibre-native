@@ -141,6 +141,11 @@ HeadlessBackend::HeadlessBackend(Size size_, SwapBehaviour swapBehaviour_, gfx::
     // Create device descriptor
     wgpu::DeviceDescriptor deviceDesc = {};
     deviceDesc.label = "MapLibre Headless WebGPU Device";
+    deviceDesc.SetUncapturedErrorCallback([](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
+        Log::Error(Event::Render,
+                   "Dawn validation error [" + std::to_string(static_cast<int>(type)) + "] " +
+                       (message.data ? std::string(message.data, message.length) : std::string()));
+    });
 
     // Create device
     WGPUDevice rawDevice = selectedAdapter.CreateDevice(&deviceDesc);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mln/gfx/uniform_buffer.hpp>
 #include <mln/renderer/layer_group.hpp>
 #include <mln/shaders/shader_program_base.hpp>
 
@@ -24,6 +25,7 @@ public:
 private:
     TileLayerGroupPtr layerGroup;
     gfx::ShaderProgramBasePtr shader;
+    gfx::UniformBufferPtr projectionUniformBuffer;
 };
 
 } // namespace mln
