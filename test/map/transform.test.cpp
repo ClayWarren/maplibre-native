@@ -1355,3 +1355,11 @@ TEST(TransformState, ProjectionDataMercatorFields) {
         EXPECT_FALSE(data.clipAntimeridian);
     }
 }
+
+TEST(Transform, ProjectionDefinition) {
+    Transform transform;
+    ASSERT_EQ(ProjectionDefinition("mercator"), transform.getState().getProjectionDefinition());
+    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective", "mercator", 0.5));
+    ASSERT_EQ(ProjectionDefinition("vertical-perspective", "mercator", 0.5),
+              transform.getState().getProjectionDefinition());
+}

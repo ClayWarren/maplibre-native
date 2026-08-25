@@ -138,6 +138,23 @@ std::optional<std::vector<Color>> Converter<std::vector<Color>>::operator()(cons
     return result;
 }
 
+std::optional<ProjectionDefinition> Converter<ProjectionDefinition>::operator()(const Convertible& value,
+                                                                                Error& error) const {
+    if (const std::optional<std::string> type = toString(value)) {
+        return ProjectionDefinition(*type);
+    }
+    if (isArray(value) && arrayLength(value) == 3) {
+        const std::optional<std::string> from = toString(arrayMember(value, 0));
+        const std::optional<std::string> to = toString(arrayMember(value, 1));
+        const std::optional<float> transition = toNumber(arrayMember(value, 2));
+        if (from && to && transition) {
+            return ProjectionDefinition(*from, *to, *transition);
+        }
+    }
+    error.message = "value must be a string or an array of [from, to, transition]";
+    return std::nullopt;
+}
+
 std::optional<Padding> Converter<Padding>::operator()(const Convertible& value, Error& error) const {
     std::optional<Padding> result;
     if (isArray(value)) {
