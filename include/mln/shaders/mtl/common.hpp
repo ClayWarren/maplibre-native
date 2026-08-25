@@ -286,10 +286,24 @@ inline float4 projectTile(float2 pos, device const ProjectionUBO& projection) {
     return interpolateProjection(pos, projectToSphere(pos, float2(0.0, 0.0), projection), 0.0, projection);
 }
 
+// The variant for geometry that can carry pole vertices; rawPos is the untranslated position.
+inline float4 projectTile(float2 pos, float2 rawPos, device const ProjectionUBO& projection) {
+    return interpolateProjection(pos, projectToSphere(pos, rawPos, projection), 0.0, projection);
+}
+
 #else
 
 inline float4 projectTile(float2 pos, device const ProjectionUBO& projection) {
     return projection.matrix * float4(pos, 0.0, 1.0);
+}
+
+// Pole vertices only exist on the globe; put them behind the near plane so their triangles are clipped.
+inline float4 projectTile(float2 pos, float2 rawPos, device const ProjectionUBO& projection) {
+    float4 result = projection.matrix * float4(pos, 0.0, 1.0);
+    if (rawPos.y < -32767.5 || rawPos.y > 32766.5) {
+        result.z = -10000000.0;
+    }
+    return result;
 }
 
 #endif

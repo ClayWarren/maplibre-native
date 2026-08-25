@@ -3,5 +3,8 @@
     "render-tests/tilejson-bounds/default": "flaky on CI",
     "render-tests/icon-text-fit/textFit-grid-long": "Needs to be investigated",
     "render-tests/projection/globe/fill-grid": "globe rendering lands per backend after Metal; https://github.com/maplibre/maplibre-native/pull/4525",
-    "render-tests/projection/globe/fill-grid-pitched": "globe rendering lands per backend after Metal; https://github.com/maplibre/maplibre-native/pull/4525"
+    "render-tests/projection/globe/fill-grid-pitched": "globe rendering lands per backend after Metal; https://github.com/maplibre/maplibre-native/pull/4525",
+    "render-tests/projection/globe/background": "globe rendering lands per backend after Metal; https://github.com/maplibre/maplibre-native/pull/4525",
+    "render-tests/projection/globe/fill-planet-solid": "globe rendering lands per backend after Metal; https://github.com/maplibre/maplibre-native/pull/4525",
+    "render-tests/projection/globe/fill-planet-tiles": "globe rendering lands per backend after Metal; https://github.com/maplibre/maplibre-native/pull/4525"
 }

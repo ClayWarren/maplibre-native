@@ -22,7 +22,9 @@ void generateFillAndOutineBuffers(const GeometryCollection& geometry,
                                   gfx::IndexVector<gfx::Triangles>& fillIndexes,
                                   SegmentVector& fillSegments,
                                   gfx::IndexVector<gfx::Lines>& lineIndexes,
-                                  SegmentVector& lineSegments);
+                                  SegmentVector& lineSegments,
+                                  const CanonicalTileID& canonical,
+                                  uint32_t subdivisionGranularity = 1);
 
 /// Generate fill and outline buffers, where the outlines are built with triangle primitives
 void generateFillAndOutineBuffers(const GeometryCollection& geometry,

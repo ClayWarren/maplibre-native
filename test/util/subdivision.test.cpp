@@ -3,7 +3,9 @@
 #include <mln/util/constants.hpp>
 #include <mln/util/subdivision.hpp>
 #include <mln/util/subdivision_granularity.hpp>
+#include <mln/util/tile_mesh.hpp>
 
+#include <map>
 #include <set>
 
 using namespace mln;
@@ -125,4 +127,98 @@ TEST(Subdivision, VertexLine) {
     const auto closed = subdivideVertexLine(ring, 1, true);
     EXPECT_EQ(ring.front(), closed.back());
     EXPECT_EQ(4u, closed.size());
+}
+
+namespace {
+
+// Every interior edge is shared by exactly two triangles and every boundary edge by one: no cracks, no overlaps.
+void expectManifold(const SubdivisionResult& r) {
+    std::map<std::pair<uint32_t, uint32_t>, int> edges;
+    for (std::size_t i = 0; i + 2 < r.triangleIndices.size(); i += 3) {
+        for (std::size_t k = 0; k < 3; k++) {
+            const uint32_t a = r.triangleIndices[i + k];
+            const uint32_t b = r.triangleIndices[i + (k + 1) % 3];
+            edges[{std::min(a, b), std::max(a, b)}]++;
+        }
+    }
+    // Pole quads are generated once per adjacent triangle, so edges at the poles are legitimately shared more.
+    const auto touchesPole = [&](const std::pair<uint32_t, uint32_t>& edge) {
+        const int16_t y0 = r.vertices[edge.first * 2 + 1];
+        const int16_t y1 = r.vertices[edge.second * 2 + 1];
+        const auto atPole = [](int16_t y) {
+            return y == NORTH_POLE_Y || y == SOUTH_POLE_Y;
+        };
+        const auto onPoleEdge = [](int16_t y) {
+            return y == 0 || y == EXTENT;
+        };
+        return atPole(y0) || atPole(y1) || (onPoleEdge(y0) && y0 == y1);
+    };
+    std::size_t bad = 0;
+    for (const auto& [edge, count] : edges) {
+        if (count > 2 && !touchesPole(edge)) {
+            bad++;
+        }
+    }
+    EXPECT_EQ(0u, bad);
+    // T-junctions show up as boundary edges that are not on the outline: a vertex lying strictly inside another edge.
+    std::size_t tJunctions = 0;
+    for (const auto& [edge, count] : edges) {
+        if (count != 1) continue;
+        const double ax = r.vertices[edge.first * 2], ay = r.vertices[edge.first * 2 + 1];
+        const double bx = r.vertices[edge.second * 2], by = r.vertices[edge.second * 2 + 1];
+        for (std::size_t v = 0; v < r.vertices.size() / 2; v++) {
+            if (v == edge.first || v == edge.second) continue;
+            const double px = r.vertices[v * 2], py = r.vertices[v * 2 + 1];
+            const double cross = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+            if (cross != 0) continue;
+            const double dot = (px - ax) * (bx - ax) + (py - ay) * (by - ay);
+            const double len2 = (bx - ax) * (bx - ax) + (by - ay) * (by - ay);
+            if (dot > 0 && dot < len2) {
+                tJunctions++;
+                break;
+            }
+        }
+    }
+    EXPECT_EQ(0u, tJunctions);
+}
+
+} // namespace
+
+TEST(Subdivision, WorldPolygonWithBufferIsManifold) {
+    constexpr int16_t buffer = 512;
+    const auto world = square(-buffer, -buffer, EXTENT + buffer, EXTENT + buffer);
+    for (const uint8_t z : {0, 1}) {
+        const auto result = subdividePolygon(world, CanonicalTileID(z, 0, 0), 128u >> z);
+        expectManifold(result);
+    }
+}
+
+TEST(TileMesh, QuadAndGrid) {
+    const auto quad = createTileMesh({.granularity = 1});
+    EXPECT_EQ(4u, quad.vertices.size() / 2);
+    EXPECT_EQ(6u, quad.indices.size());
+
+    const auto grid = createTileMesh({.granularity = 4, .generateBorders = true});
+    EXPECT_EQ(7u * 7u, grid.vertices.size() / 2);
+    EXPECT_EQ(6u * 6u * 6u, grid.indices.size());
+    EXPECT_EQ(-EXTENT / 128, grid.vertices[0]);
+    EXPECT_EQ(EXTENT + EXTENT / 128, grid.vertices[(7 * 7 - 1) * 2]);
+
+    const auto polar = createTileMesh({.granularity = 2, .extendToNorthPole = true, .extendToSouthPole = true});
+    EXPECT_EQ(3u * 5u, polar.vertices.size() / 2);
+    EXPECT_EQ(NORTH_POLE_Y, polar.vertices[1]);
+    EXPECT_EQ(SOUTH_POLE_Y, polar.vertices[(3 * 5 - 1) * 2 + 1]);
+    for (std::size_t i = 0; i + 2 < polar.indices.size(); i += 3) {
+        const auto x = [&](uint16_t v) {
+            return static_cast<double>(polar.vertices[v * 2]);
+        };
+        const auto y = [&](uint16_t v) {
+            return static_cast<double>(polar.vertices[v * 2 + 1]);
+        };
+        const double cross = (x(polar.indices[i + 1]) - x(polar.indices[i])) *
+                                 (y(polar.indices[i + 2]) - y(polar.indices[i])) -
+                             (y(polar.indices[i + 1]) - y(polar.indices[i])) *
+                                 (x(polar.indices[i + 2]) - x(polar.indices[i]));
+        EXPECT_LT(cross, 0.0);
+    }
 }
