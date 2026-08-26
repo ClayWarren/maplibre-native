@@ -60,8 +60,8 @@ struct alignas(16) ProjectionUBO {
     /* 144 */ std::array<float, 4> clipping_plane;
     /* 160 */ float projection_transition;
     /* 164 */ float depth_offset;
-    /* 168 */ float pad1;
-    /* 172 */ float pad2;
+    /// Tile-unit translation the sphere path adds; the fallback matrix carries its own.
+    /* 168 */ std::array<float, 2> translate;
     /* 176 */
 };
 static_assert(sizeof(ProjectionUBO) == 11 * 16);
