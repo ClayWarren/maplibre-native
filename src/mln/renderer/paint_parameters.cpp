@@ -211,6 +211,9 @@ bool PaintParameters::renderTileClippingMasks(const RenderTiles& renderTiles) {
     if (nextStencilID + count > maxStencilValue) {
         clearStencil();
     }
+    if (!state.isGlobeRendering()) {
+        context.releaseGlobeClipMasks();
+    }
 
 #if MLN_RENDER_BACKEND_WEBGPU
     const bool globe = state.isGlobeRendering();

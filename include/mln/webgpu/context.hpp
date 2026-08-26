@@ -69,6 +69,7 @@ public:
     // State management
     void resetState(gfx::DepthMode depthMode, gfx::ColorMode colorMode) override;
     void setDirtyState() override;
+    void releaseGlobeClipMasks() override;
     void clearStencilBuffer(int32_t) override;
 
     // Uniform buffer management

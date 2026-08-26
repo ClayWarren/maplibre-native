@@ -180,6 +180,8 @@ public:
 
     void setDirtyState() override;
 
+    void releaseGlobeClipMasks() override;
+
     Texture2DPool& getTexturePool();
 
 private:
