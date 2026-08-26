@@ -139,7 +139,7 @@ void RenderImageSource::update(Immutable<style::Source::Impl> baseImpl_,
                                        .tileLodScale = parameters.tileLodScale,
                                        .tileLodPitchThreshold = parameters.tileLodPitchThreshold,
                                        .tileLodMode = parameters.tileLodMode},
-                                      static_cast<uint8_t>(transformState.getZoom()),
+                                      transformState.getIntegerZoom(),
                                       zoomRange);
     for (auto tile : idealTiles) {
         if (tile.wrap != 0 && tileCover[0].canonical.isChildOf(tile.canonical)) {
