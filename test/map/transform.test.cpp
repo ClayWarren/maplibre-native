@@ -1540,6 +1540,35 @@ TEST(GlobeTransform, PolesAreReachableAndZoomFollowsLatitude) {
     EXPECT_NEAR(radiusBefore, transform.getState().getGlobeRadiusPixels(), 1e-6);
 }
 
+TEST(GlobeTransform, BoundsKeepTheCenterInside) {
+    // GL JS ignores `maxBounds` on the globe (its TODO); native keeps honoring them, in every constrain mode.
+    const LatLngBounds bounds = LatLngBounds::hull({40.0, -10.0}, {70.0, 40.0});
+    for (const auto mode : {ConstrainMode::HeightOnly, ConstrainMode::WidthAndHeight, ConstrainMode::Screen}) {
+        Transform transform;
+        setUpGlobe(transform, {56.0, 11.0}, 4.0);
+        transform.setConstrainMode(mode);
+        transform.setLatLngBounds(bounds);
+        EXPECT_NEAR(56.0, transform.getLatLng().latitude(), 1e-9);
+        EXPECT_NEAR(11.0, transform.getLatLng().longitude(), 1e-9);
+        for (const LatLng& outside :
+             {LatLng{56.0, -65.0}, LatLng{80.0, 11.0}, LatLng{56.0, 50.0}, LatLng{30.0, 11.0}}) {
+            transform.jumpTo(CameraOptions().withCenter(outside).withZoom(4.0));
+            EXPECT_TRUE(bounds.contains(transform.getLatLng()))
+                << transform.getLatLng().latitude() << ", " << transform.getLatLng().longitude();
+        }
+        // A center the whole screen fits around stays where it was asked for.
+        transform.jumpTo(CameraOptions().withCenter(LatLng{55.0, 15.0}).withZoom(4.0));
+        EXPECT_NEAR(55.0, transform.getLatLng().latitude(), 1e-9);
+        EXPECT_NEAR(15.0, transform.getLatLng().longitude(), 1e-9);
+        if (mode == ConstrainMode::Screen) {
+            // The screen has to fit inside the bounds, so zooming out is stopped short.
+            transform.jumpTo(CameraOptions().withCenter(LatLng{56.0, 11.0}).withZoom(1.0));
+            EXPECT_GT(transform.getZoom(), 1.0);
+            EXPECT_TRUE(bounds.contains(transform.getLatLng()));
+        }
+    }
+}
+
 TEST(GlobeTransform, MinZoomFollowsLatitude) {
     Transform transform;
     setUpGlobe(transform, {0.0, 0.0}, 2.0);
