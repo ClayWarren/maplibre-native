@@ -925,7 +925,8 @@ bool Context::renderGlobeTileClippingMasks(PaintParameters& parameters,
             builder->setEnableColor(false);
             builder->setEnableDepth(false);
             builder->setEnableStencil(false);
-            builder->setCullFaceMode(gfx::CullFaceMode::disabled());
+            // the far side of a limb tile projects inside the disc; cull it or it overwrites the tile in front
+            builder->setCullFaceMode(gfx::CullFaceMode::backCCW());
             builder->setVertexAttrId(shaders::idGlobeDepthPosVertexAttribute);
             auto mesh = rawGlobeTileMesh(tile, false, SubdivisionGranularitySetting::globe().stencil);
             builder->setRawVertices(std::move(mesh.vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);

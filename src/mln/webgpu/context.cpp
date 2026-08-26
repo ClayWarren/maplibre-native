@@ -481,14 +481,17 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
                                                static_cast<uint8_t>(gfx::ProjectionVariant::Globe));
     }
 
-    const auto pipeline = shader.getRenderPipeline(renderable,
-                                                   &vertexLayout,
-                                                   1,
-                                                   colorMode,
-                                                   clipMaskDepthMode,
-                                                   clipMaskStencilMode,
-                                                   gfx::DrawModeType::Triangles,
-                                                   globeClipMaskPipelineHash);
+    const auto pipeline = shader.getRenderPipeline(
+        renderable,
+        &vertexLayout,
+        1,
+        colorMode,
+        clipMaskDepthMode,
+        clipMaskStencilMode,
+        gfx::DrawModeType::Triangles,
+        globeClipMaskPipelineHash,
+        // the far side of a limb tile projects inside the disc; cull it or it overwrites the tile in front
+        gfx::CullFaceMode::backCCW());
     if (!pipeline) {
         Log::Error(Event::Render, "WebGPU: Failed to create globe clipping mask pipeline");
         return false;

@@ -520,7 +520,9 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
         return false;
     }
 
-    mtlRenderPass.setCullMode(MTL::CullModeNone);
+    // the far side of a limb tile projects inside the disc; cull it or it overwrites the tile in front
+    mtlRenderPass.setFrontFacingWinding(MTL::WindingCounterClockwise);
+    mtlRenderPass.setCullMode(MTL::CullModeBack);
 
     for (std::size_t ii = 0; ii < masks.size(); ++ii) {
         const auto& tile = masks[ii].tile;

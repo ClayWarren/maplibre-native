@@ -697,6 +697,8 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
         globeClipping.pipelineInfo.stencilTest = true;
         globeClipping.pipelineInfo.stencilFunction = vk::CompareOp::eAlways;
         globeClipping.pipelineInfo.stencilPass = vk::StencilOp::eReplace;
+        // the far side of a limb tile projects inside the disc; cull it or it overwrites the tile in front
+        globeClipping.pipelineInfo.setCullMode(gfx::CullFaceMode::backCCW());
         constexpr uint32_t allStencilBits = 0xFF;
         globeClipping.pipelineInfo.dynamicValues.stencilWriteMask = allStencilBits;
         globeClipping.pipelineInfo.dynamicValues.stencilCompareMask = allStencilBits;
