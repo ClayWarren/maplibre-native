@@ -96,7 +96,8 @@ void FillExtrusionBucket::addFeature(const GeometryTileFeature& feature,
                 subdividedRings.push_back(util::subdivideVertexLine(ring, granularity, true));
             }
             polyVariant = std::move(subdividedRings);
-            roof = util::subdividePolygon(polygon, canonical, granularity, false);
+            roof = util::subdividePolygonWithinLimit(
+                polygon, canonical, granularity, false, std::numeric_limits<uint16_t>::max());
         }
 
         std::size_t totalVertices = roof ? roof->vertices.size() / 2 : 0;

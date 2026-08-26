@@ -193,6 +193,41 @@ TEST(Subdivision, WorldPolygonWithBufferIsManifold) {
     }
 }
 
+TEST(Subdivision, PolygonBeyondTheIndexLimitCoarsens) {
+    // A comb of 400 full-height teeth: 800 vertical edges each crossing 128 cell rows would need more vertices than a
+    // 16-bit index space holds; the fallback halves the granularity until the polygon fits rather than dropping it.
+    GeometryCoordinates ring;
+    constexpr int16_t teeth = 400;
+    constexpr int16_t step = util::EXTENT / (teeth * 2);
+    for (int16_t i = 0; i < teeth; ++i) {
+        const int16_t x0 = static_cast<int16_t>(i * 2 * step);
+        const int16_t x1 = static_cast<int16_t>(x0 + step);
+        ring.emplace_back(x0, util::EXTENT);
+        ring.emplace_back(x0, 0);
+        ring.emplace_back(x1, 0);
+        ring.emplace_back(x1, util::EXTENT);
+    }
+    ring.emplace_back(util::EXTENT, util::EXTENT);
+    ring.emplace_back(0, util::EXTENT);
+    const GeometryCollection polygon{ring};
+    const CanonicalTileID tile(3, 4, 4);
+    constexpr std::size_t limit = std::numeric_limits<uint16_t>::max();
+
+    const auto full = subdividePolygon(polygon, tile, 128, false);
+    EXPECT_GT(full.vertices.size() / 2, limit);
+
+    const auto fitted = subdividePolygonWithinLimit(polygon, tile, 128, false, limit);
+    EXPECT_LE(fitted.vertices.size() / 2, limit);
+    EXPECT_FALSE(fitted.triangleIndices.empty());
+    // The finest granularity that fits: the first halving whose result is within the limit.
+    uint32_t granularity = 128;
+    while (subdividePolygon(polygon, tile, granularity, false).vertices.size() / 2 > limit) {
+        granularity /= 2;
+    }
+    EXPECT_LT(granularity, 128u);
+    EXPECT_EQ(subdividePolygon(polygon, tile, granularity, false).vertices.size(), fitted.vertices.size());
+}
+
 TEST(TileMesh, QuadAndGrid) {
     const auto quad = createTileMesh({.granularity = 1});
     EXPECT_EQ(4u, quad.vertices.size() / 2);
