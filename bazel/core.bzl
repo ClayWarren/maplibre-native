@@ -970,7 +970,6 @@ MLN_DRAWABLES_SOURCE = [
     "src/mln/gfx/gpu_expression.cpp",
     "src/mln/gfx/hillshade_prepare_drawable_data.hpp",
     "src/mln/gfx/color_relief_drawable_data.hpp",
-    "src/mln/gfx/image_drawable_data.hpp",
     "src/mln/gfx/line_drawable_data.hpp",
     "src/mln/gfx/symbol_drawable_data.hpp",
     "src/mln/gfx/collision_drawable_data.hpp",

@@ -173,7 +173,6 @@ list(APPEND SRC_FILES
     ${PROJECT_SOURCE_DIR}/src/mln/gfx/gpu_expression.cpp
     ${PROJECT_SOURCE_DIR}/src/mln/gfx/hillshade_prepare_drawable_data.hpp
     ${PROJECT_SOURCE_DIR}/src/mln/gfx/color_relief_drawable_data.hpp
-    ${PROJECT_SOURCE_DIR}/src/mln/gfx/image_drawable_data.hpp
     ${PROJECT_SOURCE_DIR}/src/mln/gfx/line_drawable_data.hpp
     ${PROJECT_SOURCE_DIR}/src/mln/gfx/symbol_drawable_data.hpp
     ${PROJECT_SOURCE_DIR}/src/mln/gfx/collision_drawable_data.hpp
