@@ -1,10 +1,11 @@
 #pragma once
 
-#include <optional>
 #include <mln/util/mat4.hpp>
 #include <mln/map/tile_projector.hpp>
 #include <mln/gfx/vertex_buffer.hpp>
 #include <mln/renderer/buckets/symbol_bucket.hpp>
+
+#include <optional>
 
 namespace mln {
 
@@ -81,11 +82,17 @@ private:
 /// The projections of one symbol's line vertices, so each vertex is projected once however many glyphs walk it.
 class LineProjectionCache {
 public:
-    void reset(std::size_t vertexCount) { points.assign(vertexCount, std::nullopt); }
+    void reset(std::size_t vertexCount) {
+        points.assign(vertexCount, std::nullopt);
+        occluded = false;
+    }
     const ProjectedTilePoint& get(std::size_t index, const GeometryCoordinates& line, const LabelPlaneProjector&);
+    /// Whether any vertex projected so far is behind the globe's horizon.
+    bool anyOccluded() const { return occluded; }
 
 private:
     std::vector<std::optional<ProjectedTilePoint>> points;
+    bool occluded = false;
 };
 
 void reprojectLineLabels(gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttributes>>&,

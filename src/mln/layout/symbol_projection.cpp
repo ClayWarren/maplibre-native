@@ -169,6 +169,7 @@ const ProjectedTilePoint& LineProjectionCache::get(std::size_t index,
     auto& cached = points[index];
     if (!cached) {
         cached = labelPlane.project(convertPoint<float>(line.at(index)));
+        occluded |= cached->occluded;
     }
     return *cached;
 }
@@ -398,6 +399,8 @@ std::optional<std::pair<PlacedGlyph, PlacedGlyph>> placeFirstAndLastGlyph(const 
                                                                      projections,
                                                                      returnTileDistance);
     if (!lastPlacedGlyph) return {};
+    // A line label with any vertex behind the planet is hidden whole.
+    if (projections.anyOccluded()) return {};
 
     return std::make_pair(*firstPlacedGlyph, *lastPlacedGlyph);
 }
@@ -529,7 +532,7 @@ PlacementResult placeGlyphsAlongLine(const PlacedSymbol& symbol,
                                                                      labelPlane,
                                                                      projections,
                                                                      false);
-        if (!singleGlyph) return PlacementResult::NotEnoughRoom;
+        if (!singleGlyph || projections.anyOccluded()) return PlacementResult::NotEnoughRoom;
 
         placedGlyphs.push_back(*singleGlyph);
     }
