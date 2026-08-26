@@ -32,8 +32,14 @@
 namespace mln {
 namespace vulkan {
 
-// The largest push-constant block: the globe clip mask's matrix, tile Mercator coordinates and clipping plane.
-constexpr uint32_t globeClipMaskPushConstantSize = sizeof(matf4) + 2 * sizeof(std::array<float, 4>);
+// The largest push-constant block: the globe clip mask's two matrices, which is all the guaranteed 128 bytes hold.
+constexpr uint32_t globeClipMaskPushConstantSize = 2 * sizeof(matf4);
+// The rest of a globe clip mask's projection block rides as per-instance vertex attributes.
+struct GlobeClipMaskInstance {
+    std::array<float, 4> tileMercatorCoords;
+    std::array<float, 4> clippingPlane;
+    std::array<float, 4> transition;
+};
 
 // Maximum number of vertex attributes, per vertex descriptor
 // 32 on most devices (~30% Android use 16),
@@ -700,6 +706,17 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
                 .setBinding(0)
                 .setLocation(static_cast<uint32_t>(ShaderClass::attributes[0].index))
                 .setFormat(PipelineInfo::vulkanFormat(ShaderClass::attributes[0].dataType)));
+        globeClipping.pipelineInfo.inputBindings.push_back(vk::VertexInputBindingDescription()
+                                                               .setBinding(1)
+                                                               .setStride(sizeof(GlobeClipMaskInstance))
+                                                               .setInputRate(vk::VertexInputRate::eInstance));
+        for (uint32_t i = 0; i < 3; i++) {
+            globeClipping.pipelineInfo.inputAttributes.push_back(vk::VertexInputAttributeDescription()
+                                                                     .setBinding(1)
+                                                                     .setLocation(1 + i)
+                                                                     .setFormat(vk::Format::eR32G32B32A32Sfloat)
+                                                                     .setOffset(i * sizeof(std::array<float, 4>)));
+        }
         globeClipping.pipelineInfo.updateVertexInputHash();
     }
 
@@ -724,12 +741,22 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
 
     struct PushConstants {
         matf4 matrix;
-        std::array<float, 4> tileMercatorCoords;
-        std::array<float, 4> clippingPlane;
+        matf4 fallbackMatrix;
     };
     static_assert(sizeof(PushConstants) == globeClipMaskPushConstantSize);
 
+    std::vector<GlobeClipMaskInstance> instances;
+    instances.reserve(masks.size());
     for (const auto& mask : masks) {
+        instances.push_back({.tileMercatorCoords = mask.projection.tile_mercator_coords,
+                             .clippingPlane = mask.projection.clipping_plane,
+                             .transition = {mask.projection.projection_transition, 0, 0, 0}});
+    }
+    const auto instanceBuffer = createBuffer(
+        instances.data(), instances.size() * sizeof(GlobeClipMaskInstance), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
+
+    for (std::size_t i = 0; i < masks.size(); ++i) {
+        const auto& mask = masks[i];
         const auto& tile = mask.tile;
         const auto key = std::make_tuple(tile.z, tile.y == 0, tile.y == (1u << tile.z) - 1);
         auto it = globeClipping.meshes.find(key);
@@ -750,16 +777,18 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
 
         commandBuffer->setStencilReference(vk::StencilFaceFlagBits::eFrontAndBack, mask.stencilRef, dispatcher);
 
-        const std::array<vk::Buffer, 1> vertexBuffers = {mesh.vertices.getVulkanBuffer()};
-        const std::array<vk::DeviceSize, 1> offset = {0};
-        commandBuffer->bindVertexBuffers(0, vertexBuffers, offset, dispatcher);
+        const std::array<vk::Buffer, 2> vertexBuffers = {mesh.vertices.getVulkanBuffer(),
+                                                         instanceBuffer.getVulkanBuffer()};
+        const std::array<vk::DeviceSize, 2> offsets = {0, i * sizeof(GlobeClipMaskInstance)};
+        commandBuffer->bindVertexBuffers(0, vertexBuffers, offsets, dispatcher);
         commandBuffer->bindIndexBuffer(mesh.indices.getVulkanBuffer(), 0, vk::IndexType::eUint16, dispatcher);
 
         mat4 matrix;
         matrix::multiply(matrix, rotationMat, util::cast<double>(mask.projection.matrix));
+        mat4 fallbackMatrix;
+        matrix::multiply(fallbackMatrix, rotationMat, util::cast<double>(mask.projection.fallback_matrix));
         const PushConstants constants = {.matrix = util::cast<float>(matrix),
-                                         .tileMercatorCoords = mask.projection.tile_mercator_coords,
-                                         .clippingPlane = mask.projection.clipping_plane};
+                                         .fallbackMatrix = util::cast<float>(fallbackMatrix)};
         commandBuffer->pushConstants(
             getPushConstantPipelineLayout().get(),
             vk::ShaderStageFlags() | vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
