@@ -3,6 +3,8 @@
 #include <mln/gfx/draw_scope.hpp>
 
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <vector>
 #include <map>
 #include <string>
