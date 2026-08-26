@@ -47,8 +47,9 @@ public:
 void GlobeDepthPass::update(gfx::ShaderRegistry& shaders,
                             gfx::Context& context,
                             const TransformState& state,
-                            const UpdateParameters& updateParameters) {
-    if (!state.isGlobeRendering()) {
+                            const UpdateParameters& updateParameters,
+                            bool needed) {
+    if (!state.isGlobeRendering() || !needed) {
         if (layerGroup) {
             layerGroup->clearDrawables();
         }
@@ -99,9 +100,17 @@ void GlobeDepthPass::update(gfx::ShaderRegistry& shaders,
 #endif
         }
 
-        auto mesh = rawGlobeTileMesh(tileID.canonical, true);
-        builder->setRawVertices(std::move(mesh.vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);
-        builder->setSegments(gfx::Triangles(), std::move(mesh.indices), mesh.segments.data(), mesh.segments.size());
+        // The grid depends only on the zoom and whether the tile touches a pole.
+        const auto& canonical = tileID.canonical;
+        const auto key = std::make_tuple(canonical.z, canonical.y == 0, canonical.y == (1u << canonical.z) - 1);
+        auto meshIt = meshes.find(key);
+        if (meshIt == meshes.end()) {
+            meshIt = meshes.emplace(key, rawGlobeTileMesh(canonical, true)).first;
+        }
+        const auto& mesh = meshIt->second;
+        std::vector<uint8_t> vertices = mesh.vertices;
+        builder->setRawVertices(std::move(vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);
+        builder->setSegments(gfx::Triangles(), mesh.indices, mesh.segments.data(), mesh.segments.size());
         builder->flush(context);
 
         for (auto& drawable : builder->clearDrawables()) {
