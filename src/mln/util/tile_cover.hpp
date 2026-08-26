@@ -34,6 +34,7 @@ private:
 };
 
 struct TileCoverParameters {
+    /// Must outlive these parameters.
     const TransformState& transformState;
     double tileLodMinRadius = 3;
     double tileLodScale = 1;

@@ -19,27 +19,12 @@ static void TileCountBounds(benchmark::State& state) {
     benchmark::DoNotOptimize(length);
 }
 
-static void TileCoverPitchedViewport(benchmark::State& state) {
+static void tileCoverViewport(benchmark::State& state, const char* projection, double zoom) {
     Transform transform;
     transform.resize({512, 512});
+    transform.setProjectionDefinition(ProjectionDefinition(projection));
     // slightly offset center so that tile order is better defined
-    transform.jumpTo(CameraOptions().withCenter(LatLng{0.1, -0.1}).withZoom(8.0).withBearing(5.0).withPitch(40.0));
-
-    std::size_t length = 0;
-    const Range<uint8_t> zoomRange(0, 14);
-    while (state.KeepRunning()) {
-        auto tiles = util::tileCover({transform.getState()}, 8, zoomRange);
-        length += tiles.size();
-    }
-    benchmark::DoNotOptimize(length);
-}
-
-static void TileCoverGlobe(benchmark::State& state) {
-    Transform transform;
-    transform.resize({512, 512});
-    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective"));
-    const auto zoom = static_cast<double>(state.range(0));
-    transform.jumpTo(CameraOptions().withCenter(LatLng{40.1, -74.1}).withZoom(zoom).withBearing(5.0).withPitch(60.0));
+    transform.jumpTo(CameraOptions().withCenter(LatLng{0.1, -0.1}).withZoom(zoom).withBearing(5.0).withPitch(40.0));
 
     std::size_t length = 0;
     const Range<uint8_t> zoomRange(0, 14);
@@ -49,6 +34,14 @@ static void TileCoverGlobe(benchmark::State& state) {
         length += tiles.size();
     }
     benchmark::DoNotOptimize(length);
+}
+
+static void TileCoverPitchedViewport(benchmark::State& state) {
+    tileCoverViewport(state, "mercator", 8.0);
+}
+
+static void TileCoverGlobe(benchmark::State& state) {
+    tileCoverViewport(state, "vertical-perspective", static_cast<double>(state.range(0)));
 }
 
 static void TileCoverBounds(benchmark::State& state) {

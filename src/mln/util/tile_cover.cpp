@@ -1,5 +1,6 @@
 #include <array>
 #include <span>
+#include <mln/math/angles.hpp>
 #include <mln/math/log2.hpp>
 #include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/util/bounding_volumes.hpp>
@@ -288,24 +289,46 @@ vec3 toSphere(double x, double y, const CanonicalTileID& tile) {
     return VerticalPerspectiveProjection::tileCoordinatesToSphere({x, y}, UnwrappedTileID(0, tile));
 }
 
-ConvexVolume tileBoundingVolume(const CanonicalTileID& tile) {
+constexpr double maxMercatorHorizonAngle = 89.25;
+constexpr double assumedMaxFeatureHeightMeters = 500;
+constexpr double tileCullingHorizonOnsetDegrees = 15;
+
+// Near the bottom of a steeply pitched view, tiles are culled with room for the tallest feature they might hold,
+// so buildings do not vanish before their tile leaves the screen (GL JS `getElevationForTileCulling`).
+double elevationForTileCulling(double pitchDegrees, double fovDegrees) {
+    const double bottomEdgeDegreesAboveHorizontal = maxMercatorHorizonAngle - pitchDegrees - fovDegrees / 2;
+    const double proximityToHorizon = std::clamp(
+        (tileCullingHorizonOnsetDegrees - bottomEdgeDegreesAboveHorizontal) / tileCullingHorizonOnsetDegrees, 0.0, 1.0);
+    return proximityToHorizon * assumedMaxFeatureHeightMeters;
+}
+
+// `elevation` in meters grows the volume above the sphere's surface.
+ConvexVolume tileBoundingVolume(const CanonicalTileID& tile, double elevation) {
+    // Distances from the planet's center in a world where the surface is at 1.
+    const double minRadius = std::min(0.0, elevation) / util::EARTH_RADIUS_M + 1.0;
+    const double maxRadius = std::max(0.0, elevation) / util::EARTH_RADIUS_M + 1.0;
     if (tile.z == 0) {
-        return aabbVolume({{-1, -1, -1}}, {{1, 1, 1}});
+        return aabbVolume({{-maxRadius, -maxRadius, -maxRadius}}, {{maxRadius, maxRadius, maxRadius}});
     }
     if (tile.z == 1) {
         // X is 1 at lng 90E, Y is 1 at the north pole, Z is 1 at null island.
-        return aabbVolume({{tile.x == 0 ? -1.0 : 0.0, tile.y == 0 ? 0.0 : -1.0, -1.0}},
-                          {{tile.x == 0 ? 0.0 : 1.0, tile.y == 0 ? 1.0 : 0.0, 1.0}});
+        return aabbVolume({{tile.x == 0 ? -maxRadius : 0.0, tile.y == 0 ? 0.0 : -maxRadius, -maxRadius}},
+                          {{tile.x == 0 ? 0.0 : maxRadius, tile.y == 0 ? maxRadius : 0.0, maxRadius}});
     }
     const std::array<vec3, 4> corners = {{toSphere(0, 0, tile),
                                           toSphere(util::EXTENT, 0, tile),
                                           toSphere(util::EXTENT, util::EXTENT, tile),
                                           toSphere(0, util::EXTENT, tile)}};
-    // Corners, a pole if the tile touches one, the center, and the bulging edge midpoint.
-    std::array<vec3, 7> extremes;
+    // Corners at both radii, a pole if the tile touches one, the center, and the bulging edge midpoint.
+    std::array<vec3, 11> extremes{};
     std::size_t extremeCount = 0;
     for (const vec3& corner : corners) {
-        extremes[extremeCount++] = corner;
+        extremes[extremeCount++] = vec3Scale(corner, maxRadius);
+    }
+    if (maxRadius != minRadius) {
+        for (const vec3& corner : corners) {
+            extremes[extremeCount++] = vec3Scale(corner, minRadius);
+        }
     }
     const uint32_t lastRow = (1u << tile.z) - 1;
     if (tile.y == 0) {
@@ -323,13 +346,13 @@ ConvexVolume tileBoundingVolume(const CanonicalTileID& tile) {
     const vec3 axisEast = vec3Normalize(vec3Cross(corners[2], corners[1]));
     const vec3 axisWest = vec3Normalize(vec3Cross(corners[0], corners[3]));
 
-    extremes[extremeCount++] = center;
+    extremes[extremeCount++] = vec3Scale(center, maxRadius);
     // The edge midpoint that bulges away from the center: the north edge in the south hemisphere, the south edge in the
     // north.
     if (tile.y >= (1u << tile.z) / 2) {
-        extremes[extremeCount++] = toSphere(util::EXTENT / 2.0, 0, tile);
+        extremes[extremeCount++] = vec3Scale(toSphere(util::EXTENT / 2.0, 0, tile), maxRadius);
     } else {
-        extremes[extremeCount++] = toSphere(util::EXTENT / 2.0, util::EXTENT, tile);
+        extremes[extremeCount++] = vec3Scale(toSphere(util::EXTENT / 2.0, util::EXTENT, tile), maxRadius);
     }
     const std::span<const vec3> extremeSpan(extremes.data(), extremeCount);
 
@@ -427,23 +450,19 @@ double integralOfCosXByP(double p, double x1, double x2) {
     return sum;
 }
 
-constexpr double maxMercatorHorizonAngle = 89.25;
-
-constexpr double deg2rad(double d) {
-    return d * std::numbers::pi / 180.0;
-}
-
 // The parts of GL JS `createCalculateTileZoomFunction(9.314, 3.0)` that depend on the camera alone.
 struct TileZoomConstants {
     double pitchTileLoadingBehavior;
     double tileCountPitch0;
 
     explicit TileZoomConstants(double cameraVerticalFOV)
-        : pitchTileLoadingBehavior(2 * ((maxZoomLevelsOnScreen - 1) /
-                                            std::log2(std::cos(deg2rad(maxMercatorHorizonAngle - cameraVerticalFOV)) /
-                                                      std::cos(deg2rad(maxMercatorHorizonAngle))) -
-                                        1)),
-          tileCountPitch0(2 * integralOfCosXByP(pitchTileLoadingBehavior - 1, 0, deg2rad(cameraVerticalFOV / 2))) {}
+        : pitchTileLoadingBehavior(2 *
+                                   ((maxZoomLevelsOnScreen - 1) /
+                                        std::log2(std::cos(util::deg2rad(maxMercatorHorizonAngle - cameraVerticalFOV)) /
+                                                  std::cos(util::deg2rad(maxMercatorHorizonAngle))) -
+                                    1)),
+          tileCountPitch0(2 *
+                          integralOfCosXByP(pitchTileLoadingBehavior - 1, 0, util::deg2rad(cameraVerticalFOV / 2))) {}
 
     static constexpr double maxZoomLevelsOnScreen = 9.314;
     static constexpr double tileCountMaxMinRatio = 3.0;
@@ -458,15 +477,15 @@ double calculateTileZoom(const TileZoomConstants& constants,
                          double cameraVerticalFOV) {
     const double pitchTileLoadingBehavior = constants.pitchTileLoadingBehavior;
     const double centerPitch = std::acos(std::min(1.0, distanceToTileZ / distanceToCenter3D));
-    const double highestPitch = std::min(deg2rad(maxMercatorHorizonAngle),
-                                         centerPitch + deg2rad(cameraVerticalFOV / 2));
-    const double lowestPitch = std::min(highestPitch, centerPitch - deg2rad(cameraVerticalFOV / 2));
+    const double highestPitch = std::min(util::deg2rad(maxMercatorHorizonAngle),
+                                         centerPitch + util::deg2rad(cameraVerticalFOV / 2));
+    const double lowestPitch = std::min(highestPitch, centerPitch - util::deg2rad(cameraVerticalFOV / 2));
     const double tileCount = integralOfCosXByP(pitchTileLoadingBehavior - 1, lowestPitch, highestPitch);
     const double thisTilePitch = std::atan(distanceToTile2D / distanceToTileZ);
     const double distanceToTile3D = std::hypot(distanceToTile2D, distanceToTileZ);
     double desired = requestedCenterZoom;
     desired += std::log2(distanceToCenter3D / distanceToTile3D /
-                         std::max(0.5, std::cos(deg2rad(cameraVerticalFOV / 2))));
+                         std::max(0.5, std::cos(util::deg2rad(cameraVerticalFOV / 2))));
     desired += pitchTileLoadingBehavior * std::log2(std::cos(thisTilePitch)) / 2;
     desired -=
         std::log2(std::max(1.0, tileCount / constants.tileCountPitch0 / TileZoomConstants::tileCountMaxMinRatio)) / 2;
@@ -495,11 +514,13 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
     if (matrix::invert(inverse, projection.mainMatrix)) {
         return {};
     }
-    // The globe matrix has no Mercator y flip, which reverses the winding the plane normals come from.
-    const Frustum frustum = Frustum::fromInvProjMatrix(inverse, 1.0, 0.0, /*flippedY=*/true);
+    // The globe matrix has no Mercator y flip, which reverses the winding the plane normals come from. The far plane
+    // stops at the horizon, so the frustum's corners bound the visible cap and not the space behind the planet.
     const vec4& horizon = projection.clippingPlane;
+    const Frustum frustum = Frustum::fromInvProjMatrix(inverse, 1.0, 0.0, /*flippedY=*/true, horizon);
 
-    const uint8_t maxZoom = z;
+    // Tiles nearer the camera than the center may load finer than the nominal zoom, up to the source's maximum.
+    const uint8_t maxZoom = zoomRange.max;
     const uint8_t minZoom = zoomRange.min;
     const uint8_t overscaledZoom = std::max(overscaledZ.value_or(z), maxZoom);
     const double numTiles = std::pow(2.0, z);
@@ -507,14 +528,20 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
 
     const Point<double> center = Projection::project(transform.getLatLng(), 1.0 / util::tileSize_D);
     const vec3 centerCoord = {{center.x, center.y, 0.0}};
-    assert(transform.getFreeCameraOptions().position);
-    const vec3 cameraCoord = *transform.getFreeCameraOptions().position;
+    const std::optional<vec3> cameraPosition = transform.getFreeCameraOptions().position;
+    assert(cameraPosition);
+    if (!cameraPosition) {
+        return {};
+    }
+    const vec3& cameraCoord = *cameraPosition;
     const double distanceToCenter2d = std::hypot(centerCoord[0] - cameraCoord[0], centerCoord[1] - cameraCoord[1]);
     const double distanceZ = std::abs(centerCoord[2] - cameraCoord[2]);
     const double distanceToCenter3d = std::hypot(distanceToCenter2d, distanceZ);
     const double requestedCenterZoom = transform.getZoom() + (z - std::floor(transform.getZoom()));
     const double fovDegrees = transform.getFieldOfView() * 180.0 / std::numbers::pi;
     const TileZoomConstants zoomConstants(fovDegrees);
+    const double cullingElevation = elevationForTileCulling(transform.getPitch() * 180.0 / std::numbers::pi,
+                                                            fovDegrees);
 
     std::vector<Node> stack;
     std::vector<ResultTile> result;
@@ -526,7 +553,7 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
         Node node = stack.back();
         stack.pop_back();
         const CanonicalTileID tile(node.zoom, node.x, node.y);
-        const ConvexVolume volume = tileBoundingVolume(tile);
+        const ConvexVolume volume = tileBoundingVolume(tile, cullingElevation);
 
         if (!node.fullyVisible) {
             const IntersectionResult intersection = isTileVisible(frustum, volume, horizon);
@@ -541,14 +568,15 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
                 zoomConstants, requestedCenterZoom, distToTile2d, distanceZ, distanceToCenter3d, fovDegrees));
         }
         const auto targetZoom = static_cast<uint8_t>(std::clamp(desiredZ, 0.0, static_cast<double>(maxZoom)));
-        node.wrap = wrapFor(centerCoord[0], tile);
 
         if (node.zoom >= targetZoom) {
             if (node.zoom < minZoom) {
                 continue;
             }
-            const double dx = numTiles * centerCoord[0] - 0.5 - static_cast<double>(node.x << (z - node.zoom));
-            const double dy = numTiles * centerCoord[1] - 0.5 - static_cast<double>(node.y << (z - node.zoom));
+            node.wrap = wrapFor(centerCoord[0], tile);
+            // GL JS's sort key: the tile's own x/y against the center at the nominal zoom.
+            const double dx = numTiles * centerCoord[0] - 0.5 - node.x;
+            const double dy = numTiles * centerCoord[1] - 0.5 - node.y;
             result.push_back(
                 {OverscaledTileID(
                      node.zoom == maxZoom ? overscaledZoom : node.zoom, node.wrap, node.zoom, node.x, node.y),
@@ -628,8 +656,12 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
 
     const vec3 centerCoord = {{centerPoint.x, centerPoint.y, 0.0}};
 
-    assert(transform.getFreeCameraOptions().position);
-    const vec3 cameraPositionMercator = *transform.getFreeCameraOptions().position;
+    const std::optional<vec3> cameraPosition = transform.getFreeCameraOptions().position;
+    assert(cameraPosition);
+    if (!cameraPosition) {
+        return {};
+    }
+    const vec3& cameraPositionMercator = *cameraPosition;
     const double nominalScale = std::pow(2.0, z);
     const vec3 cameraCoord = vec3Scale(cameraPositionMercator, nominalScale);
     const double cameraToCenterDistanceMercator = vec3Length(vec3Sub(cameraCoord, centerCoord)) / worldSize;
