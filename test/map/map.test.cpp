@@ -28,12 +28,12 @@
 #include <mln/style/layers/line_layer.hpp>
 #include <mln/style/layers/raster_layer.hpp>
 #include <mln/style/layers/symbol_layer.hpp>
+#include <mln/style/projection.hpp>
 #include <mln/style/sources/custom_geometry_source.hpp>
 #include <mln/style/sources/geojson_source.hpp>
 #include <mln/style/sources/image_source.hpp>
 #include <mln/style/sources/vector_source.hpp>
 #include <mln/style/style_impl.hpp>
-#include <mln/style/projection.hpp>
 #include <mln/style/style.hpp>
 #include <mln/util/async_task.hpp>
 #include <mln/util/client_options.hpp>
@@ -991,6 +991,23 @@ TEST(Map, Issue15216) {
     test.map.getStyle().addLayer(std::make_unique<RasterLayer>("RasterLayer", "ImageSource"));
     // Passes, if there is no assertion hit.
     test.runLoop.runOnce();
+}
+
+TEST(Map, GlobeImageSourceBelowZoomZero) {
+    // An image source asked for its tile cover at zoom -1.5 on the globe; the zoom was cast to an unsigned tile zoom
+    // and the render never returned.
+    MapTest<> test;
+    test.map.getStyle().loadJSON(util::read_file("test/fixtures/api/empty.json"));
+    test.map.getStyle().getProjection()->setType(ProjectionDefinition("vertical-perspective"));
+    const std::array<LatLng, 4> coords{{{60.0, -10.0}, {60.0, 10.0}, {50.0, 10.0}, {50.0, -10.0}}};
+    auto source = std::make_unique<ImageSource>("image", coords);
+    source->setImage(decodeImage(util::read_file("test/fixtures/image/no_profile.png")));
+    test.map.getStyle().addSource(std::move(source));
+    test.map.getStyle().addLayer(std::make_unique<RasterLayer>("raster", "image"));
+    test.map.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}).withZoom(-1.5));
+    ASSERT_NEAR(-1.5, test.map.getCameraOptions().zoom.value(), 1e-9);
+    const auto image = test.frontend.render(test.map).image;
+    EXPECT_EQ(test.frontend.getSize().width, image.size.width);
 }
 
 // https://github.com/mapbox/mapbox-gl-native/issues/15342
@@ -1975,9 +1992,7 @@ TEST(BackgroundLayer, StyleUpdateZoomDependency) {
 }
 
 TEST(Map, GlobeHandOffKeepsTiles) {
-    // The `globe` preset hands over to Mercator between zoom 11 and 12. Crossing that band must not re-parse the tiles
-    // already on screen: the style's projection owns the subdivision granularity for its whole life, so the same
-    // tiles serve both sides of the hand-off.
+    // Crossing the globe's Mercator hand-off must not re-parse the tiles already on screen.
     std::mutex tileMutex;
     std::vector<OverscaledTileID> parsed;
     StubMapObserver observer;

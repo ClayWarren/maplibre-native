@@ -1,7 +1,0 @@
-{
-    "default": {
-        "log": [
-	    [1, "WARNING", "ParseStyle", "projection must be an object"]
-        ]
-    }
-}

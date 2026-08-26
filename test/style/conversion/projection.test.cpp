@@ -50,10 +50,11 @@ TEST(StyleConversion, Projection) {
             R"({"type":["interpolate",["linear"],["zoom"],10,"vertical-perspective",12,"mercator"]})");
         ASSERT_TRUE(projection);
         ASSERT_TRUE(projection->getType().isExpression());
-        ASSERT_EQ(ProjectionDefinition("vertical-perspective", "vertical-perspective", 1),
-                  projection->impl->evaluate(9.f));
+        ASSERT_EQ(ProjectionDefinition("vertical-perspective"), projection->impl->evaluate(9.f));
+        ASSERT_EQ(ProjectionDefinition("vertical-perspective"), projection->impl->evaluate(10.f));
         ASSERT_EQ(ProjectionDefinition("vertical-perspective", "mercator", 0.5), projection->impl->evaluate(11.f));
-        ASSERT_EQ(ProjectionDefinition("mercator", "mercator", 1), projection->impl->evaluate(13.f));
+        ASSERT_EQ(ProjectionDefinition("mercator"), projection->impl->evaluate(12.f));
+        ASSERT_EQ(ProjectionDefinition("mercator"), projection->impl->evaluate(13.f));
     }
 
     {

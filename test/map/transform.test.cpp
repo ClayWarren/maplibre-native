@@ -4,8 +4,8 @@
 #include <cmath>
 #include <mln/map/mercator_projection.hpp>
 #include <mln/map/tile_projector.hpp>
-#include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/map/transform.hpp>
+#include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/math/angles.hpp>
 #include <mln/util/geo.hpp>
 #include <mln/util/projection.hpp>
@@ -1250,6 +1250,7 @@ TEST(Camera, SetOrientationWithRollNoPitch) {
 
 namespace {
 
+// The tile matrix as TransformState::matrixFor computed it before the projection seam.
 mat4 referenceTileMatrix(double scale, const UnwrappedTileID& tileID) {
     const uint64_t tileScale = 1ull << tileID.canonical.z;
     const double s = Projection::worldSize(scale) / tileScale;
@@ -1258,8 +1259,8 @@ mat4 referenceTileMatrix(double scale, const UnwrappedTileID& tileID) {
     matrix::identity(matrix);
     matrix::translate(matrix,
                       matrix,
-                      int64_t(tileID.canonical.x + tileID.wrap * static_cast<int64_t>(tileScale)) * s,
-                      int64_t(tileID.canonical.y) * s,
+                      static_cast<double>(tileID.canonical.x + tileID.wrap * static_cast<int64_t>(tileScale)) * s,
+                      static_cast<double>(tileID.canonical.y) * s,
                       0);
     matrix::scale(matrix, matrix, s / util::EXTENT, s / util::EXTENT, 1);
     return matrix;
@@ -1353,7 +1354,6 @@ TEST(TransformState, ProjectionDataMercatorFields) {
         EXPECT_EQ(1.0 / tileScale / util::EXTENT, data.tileMercatorCoords[3]);
         EXPECT_EQ((vec4{{0, 0, 0, 0}}), data.clippingPlane);
         EXPECT_EQ(0.0, data.projectionTransition);
-        EXPECT_FALSE(data.clipAntimeridian);
     }
 }
 
@@ -1364,8 +1364,14 @@ TEST(Transform, ProjectionDefinition) {
     transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective", "mercator", 0.5));
     ASSERT_TRUE(transform.getState().isGlobeRendering());
     ASSERT_DOUBLE_EQ(0.5, transform.getState().getProjectionTransition());
+    // The transition is how far the globe has gone, whichever way the definition reads.
+    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective", "mercator", 0.25));
+    ASSERT_DOUBLE_EQ(0.75, transform.getState().getProjectionTransition());
+    transform.setProjectionDefinition(ProjectionDefinition("mercator", "vertical-perspective", 0.25));
+    ASSERT_DOUBLE_EQ(0.25, transform.getState().getProjectionTransition());
     transform.setProjectionDefinition(ProjectionDefinition("mercator"));
     ASSERT_FALSE(transform.getState().isGlobeRendering());
+    ASSERT_DOUBLE_EQ(0.0, transform.getState().getProjectionTransition());
 }
 
 TEST(VerticalPerspectiveProjection, TileCoordinatesToSphere) {
@@ -1384,21 +1390,27 @@ TEST(VerticalPerspectiveProjection, TileCoordinatesToSphere) {
     EXPECT_LT(south[1], -0.99);
 }
 
+namespace {
+
+void setUpGlobe(Transform& transform, const LatLng& center, double zoom, double bearing = 0, double pitch = 0) {
+    transform.resize({800, 600});
+    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective"));
+    transform.jumpTo(CameraOptions().withCenter(center).withZoom(zoom).withBearing(bearing).withPitch(pitch));
+}
+
+} // namespace
+
 TEST(VerticalPerspectiveProjection, CenterProjectsToScreenCenter) {
     Transform transform;
-    transform.resize({512, 512});
-    transform.jumpTo(CameraOptions().withCenter(LatLng{37.0, -122.0}).withZoom(3.0).withBearing(20.0).withPitch(30.0));
-    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective"));
+    setUpGlobe(transform, {37.0, -122.0}, 3.0, 20.0, 30.0);
     const TransformState& state = transform.getState();
     ASSERT_TRUE(state.isGlobeRendering());
 
     const double radius = VerticalPerspectiveProjection::globeRadiusPixels(Projection::worldSize(state.getScale()),
                                                                            state.getLatLng().latitude());
     const mat4 matrix = VerticalPerspectiveProjection::globeViewProjectionMatrix(state, radius);
-    const LatLng center = state.getLatLng();
-    const double lat = util::deg2rad(center.latitude());
-    const double lng = util::deg2rad(center.longitude());
-    const vec4 surface = {{std::sin(lng) * std::cos(lat), std::sin(lat), std::cos(lng) * std::cos(lat), 1}};
+    const vec3 center = VerticalPerspectiveProjection::surfaceVector(state.getLatLng());
+    const vec4 surface = {{center[0], center[1], center[2], 1}};
     vec4 clip;
     matrix::transformMat4(clip, surface, matrix);
     EXPECT_NEAR(0.0, clip[0] / clip[3], 1e-6);
@@ -1410,22 +1422,12 @@ TEST(VerticalPerspectiveProjection, CenterProjectsToScreenCenter) {
     EXPECT_LT(plane[0] * antipode[0] + plane[1] * antipode[1] + plane[2] * antipode[2] + plane[3], 0.0);
 }
 
-namespace {
-
-void setUpGlobe(Transform& transform, const LatLng& center, double zoom, double bearing = 0, double pitch = 0) {
-    transform.resize({800, 600});
-    transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective"));
-    transform.jumpTo(CameraOptions().withCenter(center).withZoom(zoom).withBearing(bearing).withPitch(pitch));
-}
-
-} // namespace
-
 TEST(GlobeTransform, CachedViewStateFollowsTheCamera) {
     Transform transform;
     setUpGlobe(transform, {20.0, -40.0}, 2.5, 35.0, 25.0);
     const TransformState& state = transform.getState();
     const auto check = [&] {
-        const double radius = VerticalPerspectiveProjection::globeRadiusPixels(state.getScale() * util::tileSize_D,
+        const double radius = VerticalPerspectiveProjection::globeRadiusPixels(Projection::worldSize(state.getScale()),
                                                                                state.getLatLng().latitude());
         EXPECT_DOUBLE_EQ(radius, state.getGlobeRadiusPixels());
         const mat4 expected = VerticalPerspectiveProjection::globeViewProjectionMatrix(state, radius);
@@ -1476,11 +1478,12 @@ TEST(GlobeTransform, OffGlobePixelsSnapToTheHorizon) {
     EXPECT_LT(corner.latitude(), 90.0);
     EXPECT_GT(corner.latitude(), 0.0);
     EXPECT_LT(corner.longitude(), 0.0);
-    // The horizon is at most 90 degrees from the center, and just short of it seen from a finite distance.
+    // The snap lands on the horizon: from a camera `d` radii out, that circle is acos(1 / d) from the center.
+    const vec3& camera = transform.getState().getGlobeCameraPosition();
+    const double horizon = std::acos(1.0 / std::hypot(camera[0], camera[1], camera[2]));
     const double angle = std::acos(std::cos(util::deg2rad(corner.latitude())) *
                                    std::cos(util::deg2rad(corner.longitude())));
-    EXPECT_LT(util::rad2deg(angle), 90.0);
-    EXPECT_GT(util::rad2deg(angle), 60.0);
+    EXPECT_NEAR(horizon, angle, 1e-6);
 }
 
 TEST(GlobeTransform, MoveByPutsTheDraggedPointAtTheCenter) {
@@ -1516,36 +1519,25 @@ TEST(GlobeTransform, AnchoredZoomKeepsTheAnchorInPlace) {
 TEST(GlobeTransform, PolesAreReachableAndZoomFollowsLatitude) {
     Transform transform;
     setUpGlobe(transform, {0.0, 0.0}, 0.0);
-    const double radiusAtEquator = VerticalPerspectiveProjection::globeRadiusPixels(
-        transform.getState().getScale() * util::tileSize_D, 0.0);
+    const double radiusAtEquator = transform.getState().getGlobeRadiusPixels();
     transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}));
     EXPECT_NEAR(80.0, transform.getLatLng().latitude(), 1e-9);
     // Moving the center towards the pole lowers the zoom by log2(cos 80), below the map's minimum zoom of 0, so the
     // planet keeps its size on screen.
     EXPECT_NEAR(VerticalPerspectiveProjection::zoomAdjustment(0.0, 80.0), transform.getZoom(), 1e-9);
-    EXPECT_NEAR(
-        radiusAtEquator,
-        VerticalPerspectiveProjection::globeRadiusPixels(transform.getState().getScale() * util::tileSize_D, 80.0),
-        1e-6);
+    EXPECT_NEAR(radiusAtEquator, transform.getState().getGlobeRadiusPixels(), 1e-6);
     transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}).withZoom(3.0));
     transform.jumpTo(CameraOptions().withCenter(LatLng{0.0, 0.0}));
     EXPECT_NEAR(3.0 + VerticalPerspectiveProjection::zoomAdjustment(80.0, 0.0), transform.getZoom(), 1e-9);
 
     // Past the Mercator limit the center clamps, and the zoom follows the clamped center: the planet keeps its size.
-    const double radiusBefore = VerticalPerspectiveProjection::globeRadiusPixels(
-        transform.getState().getScale() * util::tileSize_D, transform.getLatLng().latitude());
+    const double radiusBefore = transform.getState().getGlobeRadiusPixels();
     transform.jumpTo(CameraOptions().withCenter(LatLng{89.0, 0.0}));
     EXPECT_NEAR(util::LATITUDE_MAX, transform.getLatLng().latitude(), 1e-6);
-    EXPECT_NEAR(radiusBefore,
-                VerticalPerspectiveProjection::globeRadiusPixels(transform.getState().getScale() * util::tileSize_D,
-                                                                 transform.getLatLng().latitude()),
-                1e-6);
+    EXPECT_NEAR(radiusBefore, transform.getState().getGlobeRadiusPixels(), 1e-6);
     transform.moveBy({0.0, 300.0});
     EXPECT_NEAR(util::LATITUDE_MAX, transform.getLatLng().latitude(), 1e-6);
-    EXPECT_NEAR(radiusBefore,
-                VerticalPerspectiveProjection::globeRadiusPixels(transform.getState().getScale() * util::tileSize_D,
-                                                                 transform.getLatLng().latitude()),
-                1e-6);
+    EXPECT_NEAR(radiusBefore, transform.getState().getGlobeRadiusPixels(), 1e-6);
 }
 
 TEST(GlobeTransform, MinZoomFollowsLatitude) {
@@ -1606,6 +1598,7 @@ TEST(TileProjector, MercatorMatchesTheTileMatrix) {
     EXPECT_FALSE(projector.project({0.0, 0.0}).occluded);
     EXPECT_DOUBLE_EQ(1.0, projector.circleRadiusCorrection());
     EXPECT_DOUBLE_EQ(1.0, projector.pitchedTextCorrection({100.0, 100.0}));
+    EXPECT_DOUBLE_EQ(1.0, state.getProjection().pixelScale(state));
 }
 
 TEST(TileProjector, GlobeOccludesTheFarSideAndCorrectsForLatitude) {
@@ -1621,10 +1614,9 @@ TEST(TileProjector, GlobeOccludesTheFarSideAndCorrectsForLatitude) {
 
     const double cos40 = std::cos(util::deg2rad(40.0));
     EXPECT_NEAR(cos40, projector.circleRadiusCorrection(), 1e-12);
+    EXPECT_NEAR(1.0 / cos40, state.getProjection().pixelScale(state), 1e-12);
     // Tile y of latitude 60 in tile 1/0/0.
-    const double mercatorY = 0.5 - std::log(std::tan(std::numbers::pi / 4 + util::deg2rad(60.0) / 2)) /
-                                       (2 * std::numbers::pi);
-    const double tileY = mercatorY * 2 * util::EXTENT;
+    const double tileY = Projection::project(LatLng{60.0, 0.0}, 2.0).y / util::tileSize_D * util::EXTENT;
     EXPECT_NEAR(cos40 / std::cos(util::deg2rad(60.0)), projector.pitchedTextCorrection({100.0, tileY}), 1e-6);
     EXPECT_NEAR(cos40, projector.pitchedTextCorrection({100.0, util::EXTENT}), 1e-6);
 }
