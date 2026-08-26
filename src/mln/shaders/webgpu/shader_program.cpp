@@ -295,7 +295,8 @@ WGPURenderPipeline ShaderProgram::getRenderPipeline(const gfx::Renderable& rende
                                                     const gfx::DepthMode& depthMode,
                                                     const gfx::StencilMode& stencilMode,
                                                     gfx::DrawModeType drawModeType,
-                                                    const std::optional<std::size_t> reuseHash) {
+                                                    const std::optional<std::size_t> reuseHash,
+                                                    const gfx::CullFaceMode& cullMode) {
     (void)renderable;
     // Check cache first
     if (reuseHash.has_value()) {
@@ -307,7 +308,7 @@ WGPURenderPipeline ShaderProgram::getRenderPipeline(const gfx::Renderable& rende
 
     // Create new pipeline
     WGPURenderPipeline pipeline = createPipeline(
-        vertexLayouts, vertexLayoutCount, colorMode, depthMode, stencilMode, drawModeType);
+        vertexLayouts, vertexLayoutCount, colorMode, depthMode, stencilMode, drawModeType, cullMode);
 
     // Cache the pipeline if we have a reuse hash
     if (reuseHash.has_value() && pipeline) {
@@ -640,7 +641,8 @@ WGPURenderPipeline ShaderProgram::createPipeline(const WGPUVertexBufferLayout* v
                                                  const gfx::ColorMode& colorMode,
                                                  const gfx::DepthMode& depthMode,
                                                  const gfx::StencilMode& stencilMode,
-                                                 gfx::DrawModeType drawModeType) {
+                                                 gfx::DrawModeType drawModeType,
+                                                 const gfx::CullFaceMode& cullMode) {
     WGPUDevice device = static_cast<WGPUDevice>(backend.getDevice());
 
     if (!hasVertexEntryPoint || !hasFragmentEntryPoint) {
@@ -721,8 +723,11 @@ WGPURenderPipeline ShaderProgram::createPipeline(const WGPUVertexBufferLayout* v
                                        drawModeType == gfx::DrawModeType::TriangleStrip)
                                           ? WGPUIndexFormat_Uint16
                                           : WGPUIndexFormat_Undefined;
-    primitiveState.frontFace = WGPUFrontFace_CCW;
-    primitiveState.cullMode = WGPUCullMode_None;
+    primitiveState.frontFace = cullMode.winding == gfx::CullFaceWindingType::CounterClockwise ? WGPUFrontFace_CCW
+                                                                                              : WGPUFrontFace_CW;
+    primitiveState.cullMode = !cullMode.enabled                               ? WGPUCullMode_None
+                              : cullMode.side == gfx::CullFaceSideType::Front ? WGPUCullMode_Front
+                                                                              : WGPUCullMode_Back;
 
     // Set up depth stencil state
     WGPUDepthStencilState depthStencilState = {};
