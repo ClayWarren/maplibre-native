@@ -4,6 +4,7 @@
 #include <mln/map/map.hpp>
 #include <mln/map/map_options.hpp>
 #include <mln/storage/resource_options.hpp>
+#include <mln/renderer/layers/render_location_indicator_layer.hpp>
 #include <mln/style/layers/location_indicator_layer.hpp>
 #include <mln/style/style.hpp>
 #include <mln/util/geo.hpp>
@@ -89,5 +90,8 @@ TEST(LocationIndicator, MercatorPuckAtItsLocation) {
 }
 
 TEST(LocationIndicator, GlobePuckAtItsLocation) {
+#ifndef MLN_DRAWABLE_LOCATION_INDICATOR
+    GTEST_SKIP() << "OpenGL draws the location indicator with its own renderer, which has no globe path yet";
+#endif
     expectPuckAtItsLocation("globe");
 }
