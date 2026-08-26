@@ -66,6 +66,9 @@ void CircleLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamete
     std::vector<ProjectionUBO> projectionUBOVector(layerGroup.getDrawableCount());
 #endif
 
+    const double latitudeScale = parameters.state.isGlobeRendering()
+                                     ? std::cos(util::deg2rad(parameters.state.getLatLng().latitude()))
+                                     : 1.0;
     visitLayerGroupDrawables(layerGroup, [&](gfx::Drawable& drawable) {
         assert(drawable.getTileID() || !"Circles only render with tiles");
         if (!drawable.getTileID() || !checkTweakDrawable(drawable)) {
@@ -94,11 +97,7 @@ void CircleLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamete
 #endif
 
         const auto pixelsToTileUnits = tileID.pixelsToTileUnits(1.0f, zoom);
-        // Radians per pixel on the sphere; GL JS `globeExtrudeScale`.
-        const auto globeExtrudeScale = static_cast<float>(
-            pixelsToTileUnits / (util::EXTENT * static_cast<double>(1ull << tileID.canonical.z)) * util::M2PI *
-            (parameters.state.isGlobeRendering() ? std::cos(util::deg2rad(parameters.state.getLatLng().latitude()))
-                                                 : 1.0));
+        const auto globeExtrudeScale = LayerTweaker::globeExtrudeScale(tileID, zoom, latitudeScale);
         const auto extrudeScale = pitchWithMap ? std::array<float, 2>{pixelsToTileUnits, pixelsToTileUnits}
                                                : parameters.pixelsToGLUnits;
 

@@ -53,7 +53,7 @@ fn main(in: VertexInput) -> VertexOutput {
     let tileProps = tilePropsVector[globalIndex.value];
 
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    out.position = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    out.position = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
 
     let a_pos = pos;
     let epsilon = vec2<f32>(1.0, 1.0) / tileProps.dimension;

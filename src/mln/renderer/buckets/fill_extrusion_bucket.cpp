@@ -93,11 +93,11 @@ void FillExtrusionBucket::addFeature(const GeometryTileFeature& feature,
         if (granularity >= 2 && roundedCornerDistance <= 0) {
             GeometryCollection subdividedRings;
             for (const auto& ring : polygon) {
-                subdividedRings.push_back(util::subdivideVertexLine(ring, granularity, true));
+                subdividedRings.push_back(util::subdivideVertexLine(ring, granularity, /*isRing=*/true));
             }
             polyVariant = std::move(subdividedRings);
             roof = util::subdividePolygonWithinLimit(
-                polygon, canonical, granularity, false, std::numeric_limits<uint16_t>::max());
+                polygon, canonical, granularity, /*generateOutlineLines=*/false, maxSegmentVertices);
         }
 
         std::size_t totalVertices = roof ? roof->vertices.size() / 2 : 0;
@@ -222,6 +222,7 @@ void FillExtrusionBucket::addFeature(const GeometryTileFeature& feature,
                 triangleIndex++;
             }
             nIndices = roof->triangleIndices.size();
+            assert(nIndices % 3 == 0);
             for (std::size_t i = 0; i + 2 < nIndices; i += 3) {
                 triangles.emplace_back(static_cast<uint16_t>(base + roof->triangleIndices[i]),
                                        static_cast<uint16_t>(base + roof->triangleIndices[i + 1]),

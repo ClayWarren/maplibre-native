@@ -49,4 +49,7 @@ public:
 
 using SegmentVector = std::vector<SegmentBase>;
 
+/// A segment's vertices are addressed by 16-bit indices.
+constexpr std::size_t maxSegmentVertices = std::numeric_limits<uint16_t>::max();
+
 } // namespace mln

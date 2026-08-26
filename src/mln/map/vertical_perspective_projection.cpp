@@ -82,8 +82,7 @@ vec3 rayDirectionFromPixel(const TransformState& state,
                            const ScreenCoordinate& point,
                            const mat4& inverseViewProjection) {
     const Size size = state.getSize();
-    const double yDown = size.height - point.y;
-    vec4 clip = {{point.x / size.width * 2.0 - 1.0, (yDown / size.height * 2.0 - 1.0) * -1.0, 1.0, 1.0}};
+    vec4 clip = {{point.x / size.width * 2.0 - 1.0, point.y / size.height * 2.0 - 1.0, 1.0, 1.0}};
     vec4 world;
     matrix::transformMat4(world, clip, inverseViewProjection);
     const vec3 target = {{world[0] / world[3], world[1] / world[3], world[2] / world[3]}};
@@ -122,16 +121,7 @@ LatLng VerticalPerspectiveProjection::unproject(const Point<double>& point,
 }
 
 void VerticalPerspectiveProjection::tileMatrix(mat4& matrix, const UnwrappedTileID& tileID, double scale) const {
-    const uint64_t tileScale = 1ull << tileID.canonical.z;
-    const double s = Projection::worldSize(scale) / tileScale;
-
-    matrix::identity(matrix);
-    matrix::translate(matrix,
-                      matrix,
-                      static_cast<int64_t>(tileID.canonical.x + tileID.wrap * static_cast<int64_t>(tileScale)) * s,
-                      static_cast<int64_t>(tileID.canonical.y) * s,
-                      0);
-    matrix::scale(matrix, matrix, s / util::EXTENT, s / util::EXTENT, 1);
+    mercatorTileMatrix(matrix, tileID, scale);
 }
 
 double VerticalPerspectiveProjection::globeRadiusPixels(double worldSize, double centerLatitude) {
@@ -191,8 +181,7 @@ vec4 VerticalPerspectiveProjection::clippingPlane(const TransformState& state, d
     const double distanceCameraToC = std::sqrt(distanceCameraToA * distanceCameraToA + distanceAtoC * distanceAtoC);
     const double tangentPlaneDistanceToC = 1.0 / distanceCameraToC;
 
-    const double vectorLength = std::sqrt(distanceCameraToA * distanceCameraToA + distanceAtoC * distanceAtoC);
-    vec3 plane = {{0.0, -distanceCameraToA / vectorLength, distanceAtoC / vectorLength}};
+    vec3 plane = {{0.0, -distanceCameraToA / distanceCameraToC, distanceAtoC / distanceCameraToC}};
 
     const LatLng center = state.getLatLng();
     plane = rotateZ(plane, state.getBearing());
@@ -342,16 +331,11 @@ double VerticalPerspectiveProjection::zoomAdjustment(double fromLatitude, double
 ProjectionData VerticalPerspectiveProjection::getProjectionData(const TransformState& state,
                                                                 const UnwrappedTileID& tileID,
                                                                 const mat4& mercatorMatrix) const {
-    const double tileScale = static_cast<double>(1ull << tileID.canonical.z);
     return {.mainMatrix = state.getGlobeViewProjectionMatrix(),
-            .tileMercatorCoords = {{tileID.canonical.x / tileScale,
-                                    tileID.canonical.y / tileScale,
-                                    1.0 / tileScale / util::EXTENT,
-                                    1.0 / tileScale / util::EXTENT}},
+            .tileMercatorCoords = mercatorTileCoords(tileID),
             .clippingPlane = state.getGlobeClippingPlane(),
             .projectionTransition = state.getProjectionTransition(),
-            .fallbackMatrix = mercatorMatrix,
-            .clipAntimeridian = tileID.canonical.z == 0};
+            .fallbackMatrix = mercatorMatrix};
 }
 
 ProjectedTilePoint VerticalPerspectiveProjection::projectTilePoint(const ProjectionData& data,

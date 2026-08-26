@@ -1,6 +1,5 @@
 #include <mln/renderer/layers/render_hillshade_layer.hpp>
 
-#include <optional>
 #include <mln/renderer/buckets/hillshade_bucket.hpp>
 #include <mln/renderer/render_tile.hpp>
 #include <mln/renderer/sources/render_raster_dem_source.hpp>
@@ -185,7 +184,8 @@ void RenderHillshadeLayer::update(gfx::ShaderRegistry& shaders,
     }
 
     if (!hillshadePrepareShader) {
-        hillshadePrepareShader = context.getGenericShader(shaders, HillshadePrepareShaderGroupName);
+        hillshadePrepareShader = context.getGenericShader(
+            shaders, HillshadePrepareShaderGroupName, gfx::ProjectionVariant::Mercator);
     }
 
     if (!hillshadeShader) {

@@ -111,7 +111,7 @@ private:
         bool occluded;
     };
 
-    std::pair<float, float> projectAnchor(const TileProjector&, const Point<float>& point) const;
+    ProjectedAnchor toViewport(const ProjectedTilePoint&) const;
     ProjectedAnchor projectAndGetPerspectiveRatio(const TileProjector&, const Point<float>& point) const;
     Point<float> projectPoint(const mat4& posMatrix, const Point<float>& point) const;
     Point<float> projectPoint(const TileProjector&, const Point<float>& point) const;

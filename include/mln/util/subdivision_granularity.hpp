@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 
 namespace mln {
@@ -11,11 +12,13 @@ class SubdivisionGranularityExpression {
 public:
     constexpr SubdivisionGranularityExpression(uint32_t baseZoomGranularity_, uint32_t minGranularity_)
         : baseZoomGranularity(baseZoomGranularity_),
-          minGranularity(minGranularity_) {}
+          minGranularity(minGranularity_) {
+        assert(minGranularity <= baseZoomGranularity || baseZoomGranularity == 0);
+    }
 
     /// The base granularity halves with every zoom level, down to the minimum and never below 1.
     uint32_t getGranularityForZoomLevel(uint8_t zoom) const {
-        return std::max({baseZoomGranularity >> zoom, minGranularity, 1u});
+        return std::max({zoom < 32 ? baseZoomGranularity >> zoom : 0u, minGranularity, 1u});
     }
 
     bool operator==(const SubdivisionGranularityExpression&) const = default;

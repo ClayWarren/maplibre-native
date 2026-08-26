@@ -91,8 +91,6 @@ protected:
 public:
     virtual ~RenderLayer() = default;
 
-    /// The shader variant for the current projection; drawables are rebuilt when it changes.
-
     // Begin transitions for any properties that have changed since the last frame.
     virtual void transition(const TransitionParameters&) = 0;
 

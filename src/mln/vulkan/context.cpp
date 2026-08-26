@@ -32,6 +32,9 @@
 namespace mln {
 namespace vulkan {
 
+// The largest push-constant block: the globe clip mask's matrix, tile Mercator coordinates and clipping plane.
+constexpr uint32_t globeClipMaskPushConstantSize = sizeof(matf4) + 2 * sizeof(std::array<float, 4>);
+
 // Maximum number of vertex attributes, per vertex descriptor
 // 32 on most devices (~30% Android use 16),
 // per https://vulkan.gpuinfo.org/displaydevicelimit.php?name=maxVertexInputBindings
@@ -454,8 +457,7 @@ gfx::ShaderProgramBasePtr Context::getGenericShader(gfx::ShaderRegistry& shaders
                                                     const std::string& name,
                                                     gfx::ProjectionVariant variant) {
     const auto shaderGroup = shaders.getShaderGroup(name);
-    auto shader = shaderGroup ? shaderGroup->getOrCreateShader(*this, {}, "a_pos", variant)
-                              : gfx::ShaderProgramBasePtr{};
+    auto shader = shaderGroup ? shaderGroup->getOrCreateShader(*this, {}, variant) : gfx::ShaderProgramBasePtr{};
     return std::static_pointer_cast<gfx::ShaderProgramBase>(std::move(shader));
 }
 
@@ -557,7 +559,8 @@ bool Context::renderTileClippingMasks(gfx::RenderPass& renderPass,
     if (!clipping.shader) {
         const auto group = staticData.shaders->getShaderGroup("ClippingMaskProgram");
         if (group) {
-            clipping.shader = std::static_pointer_cast<gfx::ShaderProgramBase>(group->getOrCreateShader(*this, {}));
+            clipping.shader = std::static_pointer_cast<gfx::ShaderProgramBase>(
+                group->getOrCreateShader(*this, {}, gfx::ProjectionVariant::Mercator));
         }
     }
     if (!clipping.shader) {
@@ -661,13 +664,13 @@ bool Context::renderTileClippingMasks(gfx::RenderPass& renderPass,
 
 bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
                                            RenderStaticData& staticData,
-                                           const std::vector<shaders::GlobeClipMask>& masks) {
+                                           const std::vector<gfx::GlobeClipMask>& masks) {
     using ShaderClass = shaders::ShaderSource<shaders::BuiltIn::ClippingMaskProgram, gfx::Backend::Type::Vulkan>;
 
     if (!globeClipping.shader) {
-        if (const auto group = staticData.shaders->getShaderGroup("ClippingMaskProgram")) {
+        if (const auto group = staticData.shaders->getShaderGroup(ShaderClass::name)) {
             globeClipping.shader = std::static_pointer_cast<gfx::ShaderProgramBase>(
-                group->getOrCreateShader(*this, {}, "a_pos", gfx::ProjectionVariant::Globe));
+                group->getOrCreateShader(*this, {}, gfx::ProjectionVariant::Globe));
         }
     }
     if (!globeClipping.shader) {
@@ -684,9 +687,9 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
         globeClipping.pipelineInfo.stencilTest = true;
         globeClipping.pipelineInfo.stencilFunction = vk::CompareOp::eAlways;
         globeClipping.pipelineInfo.stencilPass = vk::StencilOp::eReplace;
-        globeClipping.pipelineInfo.dynamicValues.stencilWriteMask = 0b11111111;
-        globeClipping.pipelineInfo.dynamicValues.stencilRef = 0b11111111;
-        globeClipping.pipelineInfo.dynamicValues.stencilCompareMask = 0xFF;
+        constexpr uint32_t allStencilBits = 0xFF;
+        globeClipping.pipelineInfo.dynamicValues.stencilWriteMask = allStencilBits;
+        globeClipping.pipelineInfo.dynamicValues.stencilCompareMask = allStencilBits;
         globeClipping.pipelineInfo.inputBindings.push_back(
             vk::VertexInputBindingDescription()
                 .setBinding(0)
@@ -724,6 +727,7 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
         std::array<float, 4> tileMercatorCoords;
         std::array<float, 4> clippingPlane;
     };
+    static_assert(sizeof(PushConstants) == globeClipMaskPushConstantSize);
 
     for (const auto& mask : masks) {
         const auto& tile = mask.tile;
@@ -900,9 +904,7 @@ const vk::UniquePipelineLayout& Context::getPushConstantPipelineLayout() {
     if (pushConstantPipelineLayout) return pushConstantPipelineLayout;
 
     const auto stages = vk::ShaderStageFlags() | vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-    // Sized for the globe clip mask block: matrix, tile Mercator coordinates and clipping plane.
-    const auto pushConstant =
-        vk::PushConstantRange().setSize(sizeof(matf4) + 2 * sizeof(std::array<float, 4>)).setStageFlags(stages);
+    const auto pushConstant = vk::PushConstantRange().setSize(globeClipMaskPushConstantSize).setStageFlags(stages);
 
     auto layoutInfo = vk::PipelineLayoutCreateInfo().setPushConstantRanges(pushConstant);
 

@@ -58,9 +58,8 @@ ProjectionData LayerTweaker::getProjectionData(const UnwrappedTileID& tileID,
     auto data = parameters.state.getProjectionDataForMatrix(
         tileID,
         getTileMatrix(tileID, parameters, translation, anchor, nearClipped, inViewportPixelUnits, drawable, aligned));
-#if !MLN_RENDER_BACKEND_OPENGL
-    // The same per-layer shift `multiplyWithProjectionMatrix` bakes into the Mercator matrix; the globe applies
-    // it to its own clip Z in the shader. GL keeps its depth range instead.
+#if MLN_GLOBE_DEPTH_OFFSET_IN_SHADER
+    // The same per-layer shift `multiplyWithProjectionMatrix` bakes into the Mercator matrix.
     if (!drawable.getIs3D() && drawable.getEnableDepth()) {
         data.depthOffset = ((1 + parameters.currentLayer) * PaintParameters::numSublayers -
                             drawable.getSubLayerIndex()) *
@@ -79,6 +78,12 @@ shaders::ProjectionUBO LayerTweaker::toProjectionUBO(const ProjectionData& data)
             .depth_offset = static_cast<float>(data.depthOffset),
             .pad1 = 0,
             .pad2 = 0};
+}
+
+float LayerTweaker::globeExtrudeScale(const UnwrappedTileID& tileID, float zoom, double latitudeScale) {
+    return static_cast<float>(tileID.pixelsToTileUnits(1.0f, zoom) /
+                              (util::EXTENT * static_cast<double>(1ull << tileID.canonical.z)) * util::M2PI *
+                              latitudeScale);
 }
 
 #if MLN_UBO_CONSOLIDATION

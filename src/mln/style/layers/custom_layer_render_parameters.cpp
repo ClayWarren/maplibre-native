@@ -25,7 +25,7 @@ CustomLayerRenderParameters::CustomLayerRenderParameters(const mln::PaintParamet
     globe = state.isGlobeRendering();
     projectionTransition = state.getProjectionTransition();
     const ProjectionData projection = state.getProjectionData(UnwrappedTileID(0, 0, 0));
-    globeProjectionMatrix = globe ? projection.mainMatrix : projection.fallbackMatrix;
+    globeProjectionMatrix = projection.mainMatrix;
     globeClippingPlane = projection.clippingPlane;
 }
 

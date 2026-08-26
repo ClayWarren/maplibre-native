@@ -1,4 +1,5 @@
 #include <mln/renderer/layers/render_background_layer.hpp>
+#include <mln/util/logging.hpp>
 #include <mln/util/subdivision_granularity.hpp>
 #include <mln/renderer/globe_tile_mesh.hpp>
 #include <mln/gfx/context.hpp>

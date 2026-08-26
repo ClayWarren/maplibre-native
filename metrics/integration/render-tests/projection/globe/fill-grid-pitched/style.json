@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "metadata": {"test": {"width": 512, "height": 512}},
+  "metadata": {"test": {"description": "A 10° checkerboard on the globe, pitched 40° and rotated 35°.", "width": 512, "height": 512}},
   "center": [-60.0, -30.0],
   "zoom": 1.8,
   "pitch": 40,

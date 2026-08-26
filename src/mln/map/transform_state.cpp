@@ -311,15 +311,13 @@ void TransformState::updateStateFromCamera() {
     // Compute zoom level from the camera altitude
     const double centerDistance = getCameraToCenterDistance();
     double zoom;
-    double newScale;
     double travel;
     if (dz < -1.0e-9 && position[2] > 1.0e-9 && newPitch <= maxMercatorHorizonAngle) {
         zoom = util::log2(centerDistance / (position[2] / std::cos(newPitch) * util::tileSize_D));
-        newScale = util::clamp(std::pow(2.0, zoom), min_scale, max_scale);
         travel = -position[2] / dz;
     } else {
         zoom = 14;
-        newScale = util::clamp(std::pow(2.0, zoom), min_scale, max_scale);
+        const double newScale = util::clamp(std::pow(2.0, zoom), min_scale, max_scale);
         travel = centerDistance / newScale / util::tileSize_D;
     }
 

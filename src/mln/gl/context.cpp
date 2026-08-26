@@ -108,10 +108,11 @@ Context::Context(RendererBackend& backend_)
 }
 
 Context::~Context() noexcept {
-    globeClipMaskDrawables.clear();
-    globeClipMaskShader.reset();
     if (cleanupOnDestruction) {
         backend.getThreadPool().runRenderJobs(true /* closeQueue */);
+
+        globeClipMaskDrawables.clear();
+        globeClipMaskShader.reset();
 
         glUseProgram(0);
 
@@ -574,8 +575,7 @@ gfx::ShaderProgramBasePtr Context::getGenericShader(gfx::ShaderRegistry& shaders
     if (!shaderGroup) {
         return nullptr;
     }
-    return std::static_pointer_cast<gfx::ShaderProgramBase>(
-        shaderGroup->getOrCreateShader(*this, {}, "a_pos", variant));
+    return std::static_pointer_cast<gfx::ShaderProgramBase>(shaderGroup->getOrCreateShader(*this, {}, variant));
 }
 
 TileLayerGroupPtr Context::createTileLayerGroup(int32_t layerIndex, std::size_t initialCapacity, std::string name) {
@@ -899,7 +899,7 @@ Texture2DPool& Context::getTexturePool() {
 
 bool Context::renderGlobeTileClippingMasks(PaintParameters& parameters,
                                            RenderStaticData& staticData,
-                                           const std::vector<shaders::GlobeClipMask>& masks) {
+                                           const std::vector<gfx::GlobeClipMask>& masks) {
     if (!globeClipMaskShader) {
         // The globe depth shader projects a tile mesh onto the sphere and writes nothing else, which is a clip mask.
         globeClipMaskShader = getGenericShader(*staticData.shaders, "GlobeDepthShader", gfx::ProjectionVariant::Globe);
@@ -939,6 +939,8 @@ bool Context::renderGlobeTileClippingMasks(PaintParameters& parameters,
         drawable.upload(*uploadPass);
         drawable.draw(parameters);
     }
+    stats.numDrawCalls++;
+    stats.totalDrawCalls++;
     return true;
 }
 

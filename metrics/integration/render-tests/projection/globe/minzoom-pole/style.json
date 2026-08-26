@@ -2,6 +2,7 @@
   "version": 8,
   "metadata": {
     "test": {
+      "description": "A layer with minzoom 0 stays visible at zoom -1.5 on the globe.",
       "width": 512,
       "height": 512
     }

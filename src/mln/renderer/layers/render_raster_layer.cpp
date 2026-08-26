@@ -192,7 +192,7 @@ void RenderRasterLayer::update(gfx::ShaderRegistry& shaders,
     const auto buildVertexData = [&](const gfx::UniqueDrawableBuilder& builder,
                                      gfx::Drawable* drawable,
                                      const RasterBucket& bucket,
-                                     const OverscaledTileID* tileID) {
+                                     std::optional<OverscaledTileID> tileID) {
         // The bucket may later add, remove, or change masking.  In that case, the tile's
         // shared data and segments are not updated, and it needs to be re-created.
         if (drawable && bucket.sharedVertices->isModifiedAfter(drawable->createTime)) {
@@ -204,10 +204,23 @@ void RenderRasterLayer::update(gfx::ShaderRegistry& shaders,
         const bool globe = projectionVariant == gfx::ProjectionVariant::Globe && tileID;
         const bool shared = !globe && !bucket.sharedVertices->empty() && !bucket.sharedTriangles->empty() &&
                             !bucket.segments.empty();
-        const auto* globeMesh = globe ? &globeMeshes.get(tileID->canonical, &RasterBucket::layoutVertex) : nullptr;
-        const auto& vertices = globe ? globeMesh->vertices : shared ? bucket.sharedVertices : staticDataVertices;
-        const auto& indices = globe ? globeMesh->indices : shared ? bucket.sharedTriangles : staticDataIndices;
-        const auto* segments = globe ? &globeMesh->segments : shared ? &bucket.segments : staticDataSegments.get();
+        std::shared_ptr<gfx::VertexVector<RasterLayoutVertex>> vertices;
+        std::shared_ptr<gfx::IndexVector<gfx::Triangles>> indices;
+        const SegmentVector* segments = nullptr;
+        if (globe) {
+            const auto& globeMesh = globeMeshes.get(tileID->canonical, &RasterBucket::layoutVertex);
+            vertices = globeMesh.vertices;
+            indices = globeMesh.indices;
+            segments = &globeMesh.segments;
+        } else if (shared) {
+            vertices = bucket.sharedVertices;
+            indices = bucket.sharedTriangles;
+            segments = &bucket.segments;
+        } else {
+            vertices = staticDataVertices;
+            indices = staticDataIndices;
+            segments = staticDataSegments.get();
+        }
 
         gfx::VertexAttributeArrayPtr bucketAttrs;
         auto& vertexAttrs = (shared || globe) ? bucketAttrs : staticAttrs;
@@ -263,7 +276,7 @@ void RenderRasterLayer::update(gfx::ShaderRegistry& shaders,
             // TODO: Share textures
             builder = createBuilder();
             for (const auto& matrix_ : imageData->matrices) {
-                buildVertexData(builder, /*drawable=*/nullptr, bucket, nullptr);
+                buildVertexData(builder, /*drawable=*/nullptr, bucket, std::nullopt);
                 setTextures(builder, bucket);
 
                 // finish
@@ -337,7 +350,7 @@ void RenderRasterLayer::update(gfx::ShaderRegistry& shaders,
                     }
 
                     gfx::UniqueDrawableBuilder none;
-                    if (!geometryChanged && !buildVertexData(none, &drawable, bucket, &tileID)) {
+                    if (!geometryChanged && !buildVertexData(none, &drawable, bucket, tileID)) {
                         // Masking changed, need to rebuild this tile
                         geometryChanged = true;
                     }
@@ -362,7 +375,7 @@ void RenderRasterLayer::update(gfx::ShaderRegistry& shaders,
                 setTextures(builder, bucket);
             };
 
-            buildVertexData(builder, /*drawable=*/nullptr, bucket, &tileID);
+            buildVertexData(builder, /*drawable=*/nullptr, bucket, tileID);
 
             // finish
             builder->flush(context);

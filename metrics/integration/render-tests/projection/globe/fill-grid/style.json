@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "metadata": {"test": {"width": 512, "height": 512}},
+  "metadata": {"test": {"description": "A 10° checkerboard on the globe.", "width": 512, "height": 512}},
   "center": [10.0, 20.0],
   "zoom": 1.4,
   "projection": {"type": "globe"},

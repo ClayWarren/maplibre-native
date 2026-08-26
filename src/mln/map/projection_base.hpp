@@ -15,7 +15,6 @@ struct ProjectionData {
     vec4 clippingPlane{};
     double projectionTransition = 0;
     mat4 fallbackMatrix{};
-    bool clipAntimeridian = false;
     /// Clip-space Z shift for this drawable's layer, the same one the Mercator matrix carries.
     double depthOffset = 0;
 };
@@ -27,6 +26,10 @@ struct ProjectedTilePoint {
     /// Behind the planet's horizon; never true on Mercator.
     bool occluded = false;
 };
+
+/// The tile-to-world matrix and the Mercator extent of a tile, the same on every projection.
+void mercatorTileMatrix(mat4&, const UnwrappedTileID&, double scale);
+vec4 mercatorTileCoords(const UnwrappedTileID&);
 
 class ProjectionBase {
 public:

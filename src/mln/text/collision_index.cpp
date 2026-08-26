@@ -222,10 +222,11 @@ PlacedFeatureResult CollisionIndex::placeLineFeature(
     assert(feature.alongLine);
     assert(projectedBoxes.empty());
     const auto tileUnitAnchorPoint = symbol.anchorPoint;
-    const auto projectedAnchor = projectAnchor(tileProjector, tileUnitAnchorPoint);
-    if (tileProjector.project({tileUnitAnchorPoint.x, tileUnitAnchorPoint.y}).occluded) {
+    const auto anchor = projectAndGetPerspectiveRatio(tileProjector, tileUnitAnchorPoint);
+    if (anchor.occluded) {
         return {.placed = false, .offscreen = false, .occluded = true};
     }
+    const auto projectedAnchor = std::make_pair(anchor.perspectiveRatio, anchor.signedDistanceFromCamera);
 
     const float correctedFontSize = pitchWithMap ? fontSize * static_cast<float>(tileProjector.pitchedTextCorrection(
                                                                   {tileUnitAnchorPoint.x, tileUnitAnchorPoint.y}))
@@ -448,16 +449,12 @@ std::unordered_map<uint32_t, std::vector<IndexedSubfeature>> CollisionIndex::que
     return result;
 }
 
-std::pair<float, float> CollisionIndex::projectAnchor(const TileProjector& tileProjector,
-                                                      const Point<float>& point) const {
-    const auto projected = tileProjector.project({point.x, point.y});
-    const auto distance = static_cast<float>(projected.signedDistanceFromCamera);
-    return std::make_pair(0.5f + 0.5f * (transformState.getCameraToCenterDistance() / distance), distance);
-}
-
 CollisionIndex::ProjectedAnchor CollisionIndex::projectAndGetPerspectiveRatio(const TileProjector& tileProjector,
                                                                               const Point<float>& point) const {
-    const auto projected = tileProjector.project({point.x, point.y});
+    return toViewport(tileProjector.project({point.x, point.y}));
+}
+
+CollisionIndex::ProjectedAnchor CollisionIndex::toViewport(const ProjectedTilePoint& projected) const {
     const auto size = transformState.getSize();
     const auto distance = static_cast<float>(projected.signedDistanceFromCamera);
     return {.point = Point<float>(static_cast<float>(((projected.point.x + 1) / 2) * size.width + viewportPadding),
@@ -491,14 +488,9 @@ CollisionBoundaries CollisionIndex::getProjectedCollisionBoundaries(const mat4& 
                                                                     const CollisionBox& box) const {
     vec4 p = {{box.anchor.x, box.anchor.y, 0, 1}};
     matrix::transformMat4(p, p, posMatrix);
-    const auto size = transformState.getSize();
-    const ProjectedAnchor projectedPoint = {
-        .point = Point<float>(static_cast<float>(((p[0] / p[3] + 1) / 2) * size.width + viewportPadding),
-                              static_cast<float>(((-p[1] / p[3] + 1) / 2) * size.height + viewportPadding)),
-        .perspectiveRatio = 0.5f + 0.5f * transformState.getCameraToCenterDistance() / static_cast<float>(p[3]),
-        .signedDistanceFromCamera = static_cast<float>(p[3]),
-        .occluded = false};
-    return getProjectedCollisionBoundaries(projectedPoint, shift, textPixelRatio, box);
+    const ProjectedTilePoint projected{
+        .point = {p[0] / p[3], p[1] / p[3]}, .signedDistanceFromCamera = p[3], .occluded = false};
+    return getProjectedCollisionBoundaries(toViewport(projected), shift, textPixelRatio, box);
 }
 
 CollisionBoundaries CollisionIndex::getProjectedCollisionBoundaries(const ProjectedAnchor& projectedPoint,

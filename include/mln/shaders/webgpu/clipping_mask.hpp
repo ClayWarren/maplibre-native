@@ -53,7 +53,7 @@ fn main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 #ifdef PROJECTION_GLOBE
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    let clip_pos = projectTileRaw(pos, pos, clip);
+    let clip_pos = projectTileWithPoles(pos, pos, clip);
 #else
     let clip_pos = clip.matrix * vec4<f32>(f32(in.position.x), f32(in.position.y), 0.0, 1.0);
 #endif

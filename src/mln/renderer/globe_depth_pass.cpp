@@ -19,6 +19,7 @@
 #include <mln/util/tile_cover.hpp>
 
 #include <algorithm>
+#include <unordered_set>
 
 namespace mln {
 
@@ -76,9 +77,9 @@ void GlobeDepthPass::update(gfx::ShaderRegistry& shaders,
                                            zoom,
                                            Range<uint8_t>(0, zoom));
 
-    layerGroup->removeDrawablesIf([&](gfx::Drawable& drawable) {
-        return drawable.getTileID() && (std::ranges::find(tileCover, *drawable.getTileID()) == tileCover.end());
-    });
+    const std::unordered_set<OverscaledTileID> covered(tileCover.begin(), tileCover.end());
+    layerGroup->removeDrawablesIf(
+        [&](gfx::Drawable& drawable) { return drawable.getTileID() && !covered.contains(*drawable.getTileID()); });
 
     std::unique_ptr<gfx::DrawableBuilder> builder;
     for (const auto& tileID : tileCover) {
@@ -108,8 +109,7 @@ void GlobeDepthPass::update(gfx::ShaderRegistry& shaders,
             meshIt = meshes.emplace(key, rawGlobeTileMesh(canonical, true)).first;
         }
         const auto& mesh = meshIt->second;
-        std::vector<uint8_t> vertices = mesh.vertices;
-        builder->setRawVertices(std::move(vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);
+        builder->setRawVertices(std::vector(mesh.vertices), mesh.vertexCount, gfx::AttributeDataType::Short2);
         builder->setSegments(gfx::Triangles(), mesh.indices, mesh.segments.data(), mesh.segments.size());
         builder->flush(context);
 

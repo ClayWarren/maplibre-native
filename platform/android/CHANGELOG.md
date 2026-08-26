@@ -4,7 +4,7 @@
 
 ### ✨ Features and improvements
 
-- feat(core): render the map as a globe when the style sets `"projection": {"type": "globe"}` ([#TBD](https://github.com/maplibre/maplibre-native/pull/TBD)). Custom layers receive the globe projection in `CustomLayerRenderParameters`.
+- feat(core): render the map as a globe when the style sets `"projection": {"type": "globe"}` ([#TBD](https://github.com/maplibre/maplibre-native/pull/TBD)).
 
 ## 13.5.1
 

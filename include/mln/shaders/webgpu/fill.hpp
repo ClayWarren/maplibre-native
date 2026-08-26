@@ -70,7 +70,7 @@ fn main(in: VertexInput) -> VertexOutput {
     // Transform position using the matrix
     let drawable = drawableVector[globalIndex.value].fill;
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    let clip = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    let clip = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
     out.position = clip;
 
     var color: vec4<f32>;
@@ -209,7 +209,7 @@ fn main(in: VertexInput) -> VertexOutput {
     // Transform position using the matrix
     let drawable = drawableVector[globalIndex.value].fill;
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    let clip = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    let clip = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
     let invW = 1.0 / clip.w;
     let ndcXY = clip.xy * invW;
     out.position = clip;
@@ -403,7 +403,7 @@ fn main(in: VertexInput) -> VertexOutput {
     );
 
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    let clip = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    let clip = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
     out.position = clip;
     out.v_pos_a = get_pattern_pos(
         drawable.pixel_coord_upper,
@@ -651,7 +651,7 @@ fn main(in: VertexInput) -> VertexOutput {
     );
 
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    let clip = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    let clip = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
     let invW = 1.0 / clip.w;
     let ndcXY = clip.xy * invW;
 
@@ -855,7 +855,7 @@ fn main(in: VertexInput) -> VertexOutput {
     let extrude_vec = dist / ratio;
 
     let projected_extrude = projectionVector[globalIndex.value].fallback_matrix * vec4<f32>(extrude_vec, 0.0, 0.0);
-    let base = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    let base = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
     let clip = base + projected_extrude;
     out.position = clip;
 

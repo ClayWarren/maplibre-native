@@ -102,14 +102,13 @@ layout (std140) uniform ProjectionUBO {
 #ifdef PROJECTION_GLOBE
 
 #define GLOBE_RADIUS 6371008.8
-#define GLOBE_PI 3.1415926535897932384626433832795
 
 // Tile position (0..EXTENT) to a point on the unit sphere; the pole sentinels in rawPos map to the poles.
 vec3 projectToSphere(vec2 translatedPos, vec2 rawPos) {
     vec2 mercator_pos = u_projection_tile_mercator_coords.xy + u_projection_tile_mercator_coords.zw * translatedPos;
-    float spherical_x = mercator_pos.x * GLOBE_PI * 2.0 + GLOBE_PI;
+    float spherical_x = mercator_pos.x * PI * 2.0 + PI;
     // sin/cos of the latitude from the Mercator Y via the tangent half-angle identities: no atan, and float32 precision survives near the equator.
-    float t = exp(GLOBE_PI - (mercator_pos.y * GLOBE_PI * 2.0));
+    float t = exp(PI - (mercator_pos.y * PI * 2.0));
     float t2 = t * t;
     float denom = t2 + 1.0;
     float sin_sy = (t2 - 1.0) / denom;
@@ -136,7 +135,7 @@ vec3 globeRotateVector(vec3 vec, vec2 angles) {
 // cos(latitude) at a tile Y, from the same exp() form as projectToSphere.
 float circumferenceRatioAtTileY(float tileY) {
     float mercator_pos_y = u_projection_tile_mercator_coords.y + u_projection_tile_mercator_coords.w * tileY;
-    float t = exp(GLOBE_PI - (mercator_pos_y * GLOBE_PI * 2.0));
+    float t = exp(PI - (mercator_pos_y * PI * 2.0));
     return (2.0 * t) / (t * t + 1.0);
 }
 

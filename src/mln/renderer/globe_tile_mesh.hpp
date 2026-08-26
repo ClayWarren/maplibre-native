@@ -85,6 +85,7 @@ inline RawGlobeTileMesh rawGlobeTileMesh(
     raw.vertices.resize(mesh.vertices.size() * sizeof(int16_t));
     std::memcpy(raw.vertices.data(), mesh.vertices.data(), raw.vertices.size());
     raw.vertexCount = mesh.vertices.size() / 2;
+    assert(raw.vertexCount <= std::numeric_limits<uint16_t>::max());
     raw.indices.assign(mesh.indices.begin(), mesh.indices.end());
     raw.segments.emplace_back(0, 0, raw.vertexCount, raw.indices.size());
     return raw;

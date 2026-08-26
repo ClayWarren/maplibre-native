@@ -1,6 +1,5 @@
 #include <mln/renderer/layers/render_color_relief_layer.hpp>
 
-#include <optional>
 #include <mln/renderer/layers/color_relief_layer_tweaker.hpp>
 #include <mln/renderer/buckets/hillshade_bucket.hpp>
 #include <mln/renderer/render_tile.hpp>

@@ -325,17 +325,17 @@ inline float4 projectTile(float2 pos, device const ProjectionUBO& projection) {
     return interpolateProjection(pos, projectToSphere(pos, float2(0.0, 0.0), projection), 0.0, projection);
 }
 
+// The variant for geometry that can carry pole vertices; rawPos is the untranslated position.
+inline float4 projectTile(float2 pos, float2 rawPos, device const ProjectionUBO& projection) {
+    return interpolateProjection(pos, projectToSphere(pos, rawPos, projection), 0.0, projection);
+}
+
 inline float4 projectTileWithElevation(float2 pos, float elevation, device const ProjectionUBO& projection) {
     return interpolateProjection(pos, projectToSphere(pos, float2(0.0, 0.0), projection), elevation, projection);
 }
 
 inline float4 projectTileFor3D(float2 pos, float elevation, device const ProjectionUBO& projection) {
     return interpolateProjectionFor3D(pos, projectToSphere(pos, pos, projection), elevation, projection);
-}
-
-// The variant for geometry that can carry pole vertices; rawPos is the untranslated position.
-inline float4 projectTile(float2 pos, float2 rawPos, device const ProjectionUBO& projection) {
-    return interpolateProjection(pos, projectToSphere(pos, rawPos, projection), 0.0, projection);
 }
 
 #else

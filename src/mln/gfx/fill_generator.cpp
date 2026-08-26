@@ -105,14 +105,12 @@ void addOutlineIndices(const std::size_t base,
     lineSegment.indexLength += nVertices * 2;
 }
 
-constexpr std::size_t maxSegmentVertices = std::numeric_limits<uint16_t>::max();
-
-std::size_t addSubdividedPolygon(const util::SubdivisionResult& subdivided,
-                                 gfx::VertexVector<FillLayoutVertex>& fillVertices,
-                                 gfx::IndexVector<gfx::Triangles>& fillIndexes,
-                                 SegmentVector& fillSegments,
-                                 gfx::IndexVector<gfx::Lines>* lineIndexes,
-                                 SegmentVector* lineSegments) {
+void addSubdividedPolygon(const util::SubdivisionResult& subdivided,
+                          gfx::VertexVector<FillLayoutVertex>& fillVertices,
+                          gfx::IndexVector<gfx::Triangles>& fillIndexes,
+                          SegmentVector& fillSegments,
+                          gfx::IndexVector<gfx::Lines>& lineIndexes,
+                          SegmentVector& lineSegments) {
     const std::size_t totalVertices = subdivided.vertices.size() / 2;
     if (totalVertices > maxSegmentVertices) {
         throw GeometryTooLongException();
@@ -124,28 +122,23 @@ std::size_t addSubdividedPolygon(const util::SubdivisionResult& subdivided,
     }
     addFillIndices(fillSegments, fillIndexes, subdivided.triangleIndices, startVertices, totalVertices);
 
-    if (lineIndexes && lineSegments) {
-        for (const auto& line : subdivided.lineIndexLists) {
-            if (line.empty()) {
-                continue;
-            }
-            if (lineSegments->empty() ||
-                lineSegments->back().vertexLength + totalVertices > std::numeric_limits<uint16_t>::max()) {
-                lineSegments->emplace_back(startVertices, lineIndexes->elements());
-            }
-            auto& lineSegment = lineSegments->back();
-            const auto base = static_cast<uint16_t>(lineSegment.vertexLength);
-            for (std::size_t i = 0; i + 1 < line.size(); i += 2) {
-                lineIndexes->emplace_back(static_cast<uint16_t>(base + line[i]),
-                                          static_cast<uint16_t>(base + line[i + 1]));
-            }
-            lineSegment.indexLength += line.size();
+    for (const auto& line : subdivided.lineIndexLists) {
+        if (line.empty()) {
+            continue;
         }
-        if (!lineSegments->empty()) {
-            lineSegments->back().vertexLength += totalVertices;
+        if (lineSegments.empty() || lineSegments.back().vertexLength + totalVertices > maxSegmentVertices) {
+            lineSegments.emplace_back(startVertices, lineIndexes.elements());
         }
+        auto& lineSegment = lineSegments.back();
+        const auto base = static_cast<uint16_t>(lineSegment.vertexLength);
+        for (std::size_t i = 0; i + 1 < line.size(); i += 2) {
+            lineIndexes.emplace_back(static_cast<uint16_t>(base + line[i]), static_cast<uint16_t>(base + line[i + 1]));
+        }
+        lineSegment.indexLength += line.size();
     }
-    return totalVertices;
+    if (!lineSegments.empty()) {
+        lineSegments.back().vertexLength += totalVertices;
+    }
 }
 
 } // namespace
@@ -183,13 +176,16 @@ void generateFillAndOutineBuffers(const GeometryCollection& geometry,
         limitHoles(polygon, 500);
 
         if (subdivisionGranularity >= 2) {
-            addSubdividedPolygon(
-                util::subdividePolygonWithinLimit(polygon, canonical, subdivisionGranularity, true, maxSegmentVertices),
-                vertices,
-                fillIndexes,
-                fillSegments,
-                &lineIndexes,
-                &lineSegments);
+            addSubdividedPolygon(util::subdividePolygonWithinLimit(polygon,
+                                                                   canonical,
+                                                                   subdivisionGranularity,
+                                                                   /*generateOutlineLines=*/true,
+                                                                   maxSegmentVertices),
+                                 vertices,
+                                 fillIndexes,
+                                 fillSegments,
+                                 lineIndexes,
+                                 lineSegments);
             continue;
         }
 
@@ -287,15 +283,19 @@ void generateFillAndOutineBuffers(const GeometryCollection& geometry,
 
         if (subdivisionGranularity >= 2) {
             for (const auto& ring : polygon) {
-                lineGenerator.generate(util::subdivideVertexLine(ring, subdivisionGranularity, true), lineOptions);
+                lineGenerator.generate(util::subdivideVertexLine(ring, subdivisionGranularity, /*isRing=*/true),
+                                       lineOptions);
             }
-            addSubdividedPolygon(
-                util::subdividePolygonWithinLimit(polygon, canonical, subdivisionGranularity, true, maxSegmentVertices),
-                fillVertices,
-                fillIndexes,
-                fillSegments,
-                &basicLineIndexes,
-                &basicLineSegments);
+            addSubdividedPolygon(util::subdividePolygonWithinLimit(polygon,
+                                                                   canonical,
+                                                                   subdivisionGranularity,
+                                                                   /*generateOutlineLines=*/true,
+                                                                   maxSegmentVertices),
+                                 fillVertices,
+                                 fillIndexes,
+                                 fillSegments,
+                                 basicLineIndexes,
+                                 basicLineSegments);
             continue;
         }
 

@@ -52,7 +52,7 @@ bool RenderLayer::needsRendering() const {
 bool RenderLayer::supportsZoom(float zoom) const {
     // TODO: shall we use rounding or epsilon comparisons?
     // A minimum of 0 is "no minimum": the globe zooms below 0 toward the poles.
-    return (baseImpl->minZoom <= 0 || baseImpl->minZoom <= zoom) && baseImpl->maxZoom >= zoom;
+    return baseImpl->minZoom <= std::max(zoom, 0.0f) && baseImpl->maxZoom >= zoom;
 }
 
 void RenderLayer::prepare(const LayerPrepareParameters& params) {

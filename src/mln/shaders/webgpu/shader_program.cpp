@@ -203,13 +203,11 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
     hasFragmentEntryPoint = !trimmedFragment.empty();
 
     // The shader group already prepends the common prelude and runs the preprocessor.
-    std::string vertexWithPrelude;
     if (hasVertexEntryPoint) {
-        vertexWithPrelude = vertexSource;
         WGPUShaderSourceWGSL wgslDesc = {};
         wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
         wgslDesc.chain.next = nullptr;
-        WGPUStringView vertexCode = {vertexWithPrelude.c_str(), vertexWithPrelude.length()};
+        WGPUStringView vertexCode = {vertexSource.c_str(), vertexSource.length()};
         wgslDesc.code = vertexCode;
 
         WGPUShaderModuleDescriptor vertexShaderDesc = {};
@@ -220,7 +218,7 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
         vertexShaderModule = wgpuDeviceCreateShaderModule(device, &vertexShaderDesc);
         if (!vertexShaderModule) {
             Log::Error(Event::Render, "Failed to create vertex shader module for " + shaderName);
-            Log::Error(Event::Render, "Vertex shader source length: " + std::to_string(vertexWithPrelude.length()));
+            Log::Error(Event::Render, "Vertex shader source length: " + std::to_string(vertexSource.length()));
             if (shaderName.find("CircleShader") != std::string::npos) {
                 std::ofstream dump("/tmp/circle_vertex.wgsl", std::ios::trunc);
                 dump << vertexSource;
@@ -228,14 +226,11 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
         }
     }
 
-    std::string fragmentWithPrelude;
     if (hasFragmentEntryPoint) {
-        fragmentWithPrelude = fragmentSource;
-
         WGPUShaderSourceWGSL wgslDesc = {};
         wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
         wgslDesc.chain.next = nullptr;
-        WGPUStringView fragmentCode = {fragmentWithPrelude.c_str(), fragmentWithPrelude.length()};
+        WGPUStringView fragmentCode = {fragmentSource.c_str(), fragmentSource.length()};
         wgslDesc.code = fragmentCode;
 
         WGPUShaderModuleDescriptor fragmentShaderDesc = {};
@@ -246,7 +241,7 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
         fragmentShaderModule = wgpuDeviceCreateShaderModule(device, &fragmentShaderDesc);
         if (!fragmentShaderModule) {
             Log::Error(Event::Render, "Failed to create fragment shader module for " + shaderName);
-            Log::Error(Event::Render, "Fragment shader source length: " + std::to_string(fragmentWithPrelude.length()));
+            Log::Error(Event::Render, "Fragment shader source length: " + std::to_string(fragmentSource.length()));
             if (shaderName.find("CircleShader") != std::string::npos) {
                 std::ofstream dump("/tmp/circle_fragment.wgsl", std::ios::trunc);
                 dump << fragmentSource;
@@ -254,7 +249,7 @@ ShaderProgram::ShaderProgram(Context& context, const std::string& vertexSource, 
         }
     }
 
-    createPipelineLayout(vertexWithPrelude, fragmentWithPrelude);
+    createPipelineLayout(vertexSource, fragmentSource);
 }
 
 ShaderProgram::~ShaderProgram() {

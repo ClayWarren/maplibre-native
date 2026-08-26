@@ -43,7 +43,7 @@ fn main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let drawable = drawableVector[globalIndex.value];
     let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    out.position = projectTileRaw(pos, pos, projectionVector[globalIndex.value]);
+    out.position = projectTileWithPoles(pos, pos, projectionVector[globalIndex.value]);
 
     var tex = vec2<f32>(f32(in.texcoord.x), f32(in.texcoord.y)) / 8192.0;
     tex.y = 1.0 - tex.y;
