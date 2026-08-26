@@ -66,7 +66,8 @@ StyleProperty Projection::getProperty(const std::string& name) const {
 }
 
 SubdivisionGranularitySetting Projection::Impl::getSubdivisionGranularity() const {
-    if (type.isUndefined() || (type.isConstant() && type.asConstant() == ProjectionDefinition("mercator"))) {
+    if (type.isUndefined() ||
+        (type.isConstant() && type.asConstant() == ProjectionDefinition(ProjectionType::Mercator))) {
         return SubdivisionGranularitySetting::none();
     }
     return SubdivisionGranularitySetting::globe();
@@ -79,14 +80,15 @@ ProjectionDefinition Projection::Impl::evaluate(float zoom) const {
     // `globe` is the vertical perspective up to the first zoom and Mercator from the second, blended in between.
     constexpr float globeToMercatorStartZoom = 11;
     constexpr float globeToMercatorEndZoom = 12;
-    if (definition.from == "globe" && definition.to == "globe") {
+    if (definition.from == ProjectionType::Globe && definition.to == ProjectionType::Globe) {
         if (zoom <= globeToMercatorStartZoom) {
-            return ProjectionDefinition("vertical-perspective");
+            return ProjectionDefinition(ProjectionType::VerticalPerspective);
         }
         if (zoom >= globeToMercatorEndZoom) {
-            return ProjectionDefinition("mercator");
+            return ProjectionDefinition(ProjectionType::Mercator);
         }
-        return ProjectionDefinition("vertical-perspective", "mercator", zoom - globeToMercatorStartZoom);
+        return ProjectionDefinition(
+            ProjectionType::VerticalPerspective, ProjectionType::Mercator, zoom - globeToMercatorStartZoom);
     }
     return definition;
 }

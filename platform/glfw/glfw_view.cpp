@@ -669,9 +669,10 @@ void GLFWView::onKey(GLFWwindow *window, int key, int /*scancode*/, int action, 
                 auto &style = view->map->getStyle();
                 const auto *current = style.getProjection();
                 const bool globe = current && current->getType().isConstant() &&
-                                   current->getType().asConstant().from == "globe";
+                                   current->getType().asConstant().from == mln::ProjectionType::Globe;
                 auto projection = std::make_unique<mln::style::Projection>();
-                projection->setType(mln::ProjectionDefinition(globe ? "mercator" : "globe"));
+                projection->setType(
+                    mln::ProjectionDefinition(globe ? mln::ProjectionType::Mercator : mln::ProjectionType::Globe));
                 style.setProjection(std::move(projection));
             } break;
         }

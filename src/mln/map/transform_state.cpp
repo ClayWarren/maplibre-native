@@ -117,21 +117,21 @@ void TransformState::setProperties(const TransformStateProperties& properties) {
 
 namespace {
 
-// GL JS `GlobeProjection.transitionState`; a name that is not a globe is Mercator, as GL JS falls back to.
+// GL JS `GlobeProjection.transitionState`.
 double transitionStateFor(const ProjectionDefinition& definition) {
-    const auto isGlobe = [](const std::string& name) {
-        return name == "vertical-perspective" || name == "globe";
+    const auto isGlobe = [](ProjectionType type) {
+        return type != ProjectionType::Mercator;
     };
     if (definition.from == definition.to) {
         return isGlobe(definition.from) ? 1 : 0;
     }
-    if (isGlobe(definition.from) && definition.to == "mercator") {
+    if (isGlobe(definition.from) && !isGlobe(definition.to)) {
         return 1 - definition.transition;
     }
-    if (definition.from == "mercator" && isGlobe(definition.to)) {
+    if (!isGlobe(definition.from) && isGlobe(definition.to)) {
         return definition.transition;
     }
-    return 0;
+    return 1;
 }
 
 } // namespace
