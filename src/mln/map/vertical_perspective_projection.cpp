@@ -87,11 +87,7 @@ vec3 rayDirectionFromPixel(const TransformState& state,
     vec4 world;
     matrix::transformMat4(world, clip, inverseViewProjection);
     const vec3 target = {{world[0] / world[3], world[1] / world[3], world[2] / world[3]}};
-    const vec3 camera = VerticalPerspectiveProjection::cameraPosition(
-        state,
-        VerticalPerspectiveProjection::globeRadiusPixels(Projection::worldSize(state.getScale()),
-                                                         state.getLatLng().latitude()));
-    return normalized(add(target, scaled(camera, -1.0)));
+    return normalized(add(target, scaled(state.getGlobeCameraPosition(), -1.0)));
 }
 
 // Angle to rotate the vector (x0, y0) onto the direction of (x1, y1).
@@ -237,14 +233,8 @@ LatLng VerticalPerspectiveProjection::surfaceVectorToLatLng(const vec3& surface)
 
 vec3 VerticalPerspectiveProjection::screenCoordinateToSurface(const TransformState& state,
                                                               const ScreenCoordinate& point) {
-    const double radius = globeRadiusPixels(Projection::worldSize(state.getScale()), state.getLatLng().latitude());
-    const mat4 viewProjection = globeViewProjectionMatrix(state, radius);
-    mat4 inverse;
-    if (matrix::invert(inverse, viewProjection)) {
-        return {{0.0, 0.0, 1.0}};
-    }
-    const vec3 origin = cameraPosition(state, radius);
-    const vec3 direction = rayDirectionFromPixel(state, point, inverse);
+    const vec3 origin = state.getGlobeCameraPosition();
+    const vec3 direction = rayDirectionFromPixel(state, point, state.getInverseGlobeViewProjectionMatrix());
 
     if (const auto intersection = raySphereIntersection(origin, direction)) {
         return normalized(add(origin, scaled(direction, intersection->tMin)));
@@ -252,7 +242,7 @@ vec3 VerticalPerspectiveProjection::screenCoordinateToSurface(const TransformSta
 
     // The ray misses the globe: take the nearest point on the horizon, the circle where the clipping plane cuts the
     // sphere.
-    const vec4 plane = clippingPlane(state, radius);
+    const vec4& plane = state.getGlobeClippingPlane();
     const double directionDotPlane = plane[0] * direction[0] + plane[1] * direction[1] + plane[2] * direction[2];
     const double originToPlane = pointPlaneSignedDistance(plane, origin);
     const double distanceToIntersection = -originToPlane / directionDotPlane;
@@ -283,10 +273,9 @@ LatLng VerticalPerspectiveProjection::screenCoordinateToLatLng(const TransformSt
 ScreenCoordinate VerticalPerspectiveProjection::latLngToScreenCoordinate(const TransformState& state,
                                                                          const LatLng& latLng,
                                                                          vec4& clip) {
-    const double radius = globeRadiusPixels(Projection::worldSize(state.getScale()), state.getLatLng().latitude());
     const vec3 surface = surfaceVector(latLng);
     const vec4 position = {{surface[0], surface[1], surface[2], 1.0}};
-    matrix::transformMat4(clip, position, globeViewProjectionMatrix(state, radius));
+    matrix::transformMat4(clip, position, state.getGlobeViewProjectionMatrix());
     const Size size = state.getSize();
     return {(clip[0] / clip[3] * 0.5 + 0.5) * size.width, (clip[1] / clip[3] * 0.5 + 0.5) * size.height};
 }
@@ -351,14 +340,13 @@ double VerticalPerspectiveProjection::zoomAdjustment(double fromLatitude, double
 ProjectionData VerticalPerspectiveProjection::getProjectionData(const TransformState& state,
                                                                 const UnwrappedTileID& tileID,
                                                                 const mat4& mercatorMatrix) const {
-    const double radius = globeRadiusPixels(Projection::worldSize(state.getScale()), state.getLatLng().latitude());
     const double tileScale = static_cast<double>(1ull << tileID.canonical.z);
-    return {.mainMatrix = globeViewProjectionMatrix(state, radius),
+    return {.mainMatrix = state.getGlobeViewProjectionMatrix(),
             .tileMercatorCoords = {{tileID.canonical.x / tileScale,
                                     tileID.canonical.y / tileScale,
                                     1.0 / tileScale / util::EXTENT,
                                     1.0 / tileScale / util::EXTENT}},
-            .clippingPlane = clippingPlane(state, radius),
+            .clippingPlane = state.getGlobeClippingPlane(),
             .projectionTransition = state.getProjectionTransition(),
             .fallbackMatrix = mercatorMatrix,
             .clipAntimeridian = tileID.canonical.z == 0};

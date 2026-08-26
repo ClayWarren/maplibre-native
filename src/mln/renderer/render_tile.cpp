@@ -137,7 +137,9 @@ void RenderTile::prepare(const SourcePrepareParameters& parameters) {
     const auto& transform = parameters.transform;
     projection = transform.state.getProjectionData(id, transform.projMatrix);
     matrix = projection.mainMatrix;
-    nearClippedMatrix = transform.state.getProjectionData(id, transform.nearClippedProjMatrix).mainMatrix;
+    nearClippedMatrix = transform.state.isGlobeRendering()
+                            ? matrix
+                            : transform.state.getProjectionData(id, transform.nearClippedProjMatrix).mainMatrix;
 }
 
 void RenderTile::setFeatureState(const LayerFeatureStates& states) {

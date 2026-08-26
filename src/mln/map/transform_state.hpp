@@ -134,10 +134,16 @@ public:
     void setProperties(const TransformStateProperties& properties);
 
     // Projection
-    const ProjectionDefinition& getProjectionDefinition() const { return projectionDefinition; }
     void setProjectionDefinition(const ProjectionDefinition&);
     /// 0 is Mercator, 1 is the globe, in between is the transition.
     double getProjectionTransition() const { return projectionTransition; }
+
+    /// The globe's view state for the current camera, valid while `isGlobeRendering()`; cached with the matrices.
+    double getGlobeRadiusPixels() const;
+    const mat4& getGlobeViewProjectionMatrix() const;
+    const mat4& getInverseGlobeViewProjectionMatrix() const;
+    const vec4& getGlobeClippingPlane() const;
+    const vec3& getGlobeCameraPosition() const;
     bool isGlobeRendering() const { return projectionTransition > 0; }
 
     // Matrix
@@ -319,7 +325,6 @@ private:
 
 private:
     std::shared_ptr<const ProjectionBase> projection;
-    ProjectionDefinition projectionDefinition;
     double projectionTransition = 0;
 
     ConstrainMode constrainMode;
@@ -354,6 +359,11 @@ private:
     mutable mat4 invProjectionMatrix;
     mutable mat4 coordMatrix;
     mutable mat4 invertedMatrix;
+    mutable double globeRadius = 0;
+    mutable mat4 globeViewProjection;
+    mutable mat4 invGlobeViewProjection;
+    mutable vec4 globeClippingPlane{};
+    mutable vec3 globeCameraPosition{};
 };
 
 } // namespace mln

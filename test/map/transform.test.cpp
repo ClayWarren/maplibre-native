@@ -1359,10 +1359,13 @@ TEST(TransformState, ProjectionDataMercatorFields) {
 
 TEST(Transform, ProjectionDefinition) {
     Transform transform;
-    ASSERT_EQ(ProjectionDefinition("mercator"), transform.getState().getProjectionDefinition());
+    ASSERT_FALSE(transform.getState().isGlobeRendering());
+    ASSERT_DOUBLE_EQ(0.0, transform.getState().getProjectionTransition());
     transform.setProjectionDefinition(ProjectionDefinition("vertical-perspective", "mercator", 0.5));
-    ASSERT_EQ(ProjectionDefinition("vertical-perspective", "mercator", 0.5),
-              transform.getState().getProjectionDefinition());
+    ASSERT_TRUE(transform.getState().isGlobeRendering());
+    ASSERT_DOUBLE_EQ(0.5, transform.getState().getProjectionTransition());
+    transform.setProjectionDefinition(ProjectionDefinition("mercator"));
+    ASSERT_FALSE(transform.getState().isGlobeRendering());
 }
 
 TEST(VerticalPerspectiveProjection, TileCoordinatesToSphere) {
@@ -1416,6 +1419,39 @@ void setUpGlobe(Transform& transform, const LatLng& center, double zoom, double 
 }
 
 } // namespace
+
+TEST(GlobeTransform, CachedViewStateFollowsTheCamera) {
+    Transform transform;
+    setUpGlobe(transform, {20.0, -40.0}, 2.5, 35.0, 25.0);
+    const TransformState& state = transform.getState();
+    const auto check = [&] {
+        const double radius = VerticalPerspectiveProjection::globeRadiusPixels(state.getScale() * util::tileSize_D,
+                                                                               state.getLatLng().latitude());
+        EXPECT_DOUBLE_EQ(radius, state.getGlobeRadiusPixels());
+        const mat4 expected = VerticalPerspectiveProjection::globeViewProjectionMatrix(state, radius);
+        const vec4 plane = VerticalPerspectiveProjection::clippingPlane(state, radius);
+        const vec3 camera = VerticalPerspectiveProjection::cameraPosition(state, radius);
+        for (std::size_t i = 0; i < 16; ++i) {
+            EXPECT_DOUBLE_EQ(expected[i], state.getGlobeViewProjectionMatrix()[i]) << "element " << i;
+        }
+        for (std::size_t i = 0; i < 4; ++i) {
+            EXPECT_DOUBLE_EQ(plane[i], state.getGlobeClippingPlane()[i]) << "plane " << i;
+        }
+        for (std::size_t i = 0; i < 3; ++i) {
+            EXPECT_DOUBLE_EQ(camera[i], state.getGlobeCameraPosition()[i]) << "camera " << i;
+        }
+        mat4 roundTrip;
+        matrix::multiply(roundTrip, state.getGlobeViewProjectionMatrix(), state.getInverseGlobeViewProjectionMatrix());
+        for (std::size_t i = 0; i < 16; ++i) {
+            EXPECT_NEAR(i % 5 == 0 ? 1.0 : 0.0, roundTrip[i], 1e-9) << "inverse element " << i;
+        }
+    };
+    check();
+    transform.jumpTo(CameraOptions().withCenter(LatLng{-30.0, 100.0}).withZoom(4.0).withPitch(50.0).withBearing(-80.0));
+    check();
+    transform.resize({1024, 300});
+    check();
+}
 
 TEST(GlobeTransform, UnprojectRoundTrip) {
     Transform transform;

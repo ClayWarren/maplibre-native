@@ -134,7 +134,6 @@ double transitionStateFor(const ProjectionDefinition& definition) {
 } // namespace
 
 void TransformState::setProjectionDefinition(const ProjectionDefinition& definition) {
-    projectionDefinition = definition;
     const double transition = transitionStateFor(definition);
     if (transition == projectionTransition) {
         return;
@@ -147,6 +146,7 @@ void TransformState::setProjectionDefinition(const ProjectionDefinition& definit
         }
     }
     projectionTransition = transition;
+    requestMatricesUpdate = true;
 }
 
 // MARK: - Matrix
@@ -416,6 +416,42 @@ void TransformState::updateMatricesIfNeeded() const {
     if (err) throw std::runtime_error("failed to invert coordinatePointMatrix");
 
     requestMatricesUpdate = false;
+
+    if (isGlobeRendering()) {
+        globeRadius = VerticalPerspectiveProjection::globeRadiusPixels(Projection::worldSize(scale),
+                                                                       getLatLng().latitude());
+        globeViewProjection = VerticalPerspectiveProjection::globeViewProjectionMatrix(*this, globeRadius);
+        if (matrix::invert(invGlobeViewProjection, globeViewProjection)) {
+            matrix::identity(invGlobeViewProjection);
+        }
+        globeClippingPlane = VerticalPerspectiveProjection::clippingPlane(*this, globeRadius);
+        globeCameraPosition = VerticalPerspectiveProjection::cameraPosition(*this, globeRadius);
+    }
+}
+
+double TransformState::getGlobeRadiusPixels() const {
+    updateMatricesIfNeeded();
+    return globeRadius;
+}
+
+const mat4& TransformState::getGlobeViewProjectionMatrix() const {
+    updateMatricesIfNeeded();
+    return globeViewProjection;
+}
+
+const mat4& TransformState::getInverseGlobeViewProjectionMatrix() const {
+    updateMatricesIfNeeded();
+    return invGlobeViewProjection;
+}
+
+const vec4& TransformState::getGlobeClippingPlane() const {
+    updateMatricesIfNeeded();
+    return globeClippingPlane;
+}
+
+const vec3& TransformState::getGlobeCameraPosition() const {
+    updateMatricesIfNeeded();
+    return globeCameraPosition;
 }
 
 const mat4& TransformState::getProjectionMatrix() const {
