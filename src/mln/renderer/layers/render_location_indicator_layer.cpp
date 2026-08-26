@@ -1057,6 +1057,10 @@ void RenderLocationIndicatorLayer::update(gfx::ShaderRegistry& shaders,
     if (updateProjectionVariant(state)) {
         quadShader.reset();
         circleShader.reset();
+        // the drawables were built with the other projection's shaders
+        if (layerGroup) {
+            static_cast<LayerGroup*>(layerGroup.get())->clearDrawables();
+        }
     }
 
     if (!quadShader) {
