@@ -185,7 +185,8 @@ enum {
 enum {
     idCollisionDrawableUBO = getEnumValue(idDrawableReservedVertexOnlyUBO, drawableUBOStartId), // UBO
     idCollisionTilePropsUBO = getEnumValue(drawableReservedUBOCount, idCollisionDrawableUBO + 1),
-    collisionUBOCount
+    idCollisionProjectionUBO = getEnumValue(idProjectionUBO, idCollisionTilePropsUBO + 1),
+    collisionUBOCount = getEnumValue(idCollisionTilePropsUBO + 1, idCollisionProjectionUBO + 1)
 };
 
 enum {
