@@ -8,6 +8,10 @@
 #include <mln/style/style.hpp>
 #include <mln/util/geo.hpp>
 #include <mln/util/image.hpp>
+#include <mln/layermanager/layer_manager.hpp>
+#include <mln/style/conversion/json.hpp>
+#include <mln/style/rapidjson_conversion.hpp>
+#include <mln/util/rapidjson.hpp>
 #include <mln/util/run_loop.hpp>
 
 #include <cmath>
@@ -41,6 +45,13 @@ std::optional<ScreenCoordinate> redCentre(const PremultipliedImage& image) {
 }
 
 void expectPuckAtItsLocation(const std::string& projection) {
+    // The Darwin layer manager does not register the location indicator; the SDKs draw their own puck.
+    const mln::JSValue emptyObject(rapidjson::kObjectType);
+    style::conversion::Error error;
+    if (!LayerManager::get()->createLayer("location-indicator", "probe", &emptyObject, error)) {
+        GTEST_SKIP() << "no location-indicator layer on this platform";
+    }
+
     util::RunLoop loop;
 
     HeadlessFrontend frontend{1};
