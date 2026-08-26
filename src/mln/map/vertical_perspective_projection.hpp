@@ -57,6 +57,16 @@ public:
 
     /// Zoom change that keeps the globe the same apparent size when the center moves between latitudes.
     static double zoomAdjustment(double fromLatitude, double toLatitude);
+
+    /// The shorter signed way around from one angle to the other, in degrees.
+    static double differenceOfAnglesDegrees(double from, double to);
+
+    /// Distance between two locations along the surface, in pixels at the given world size and center latitude.
+    static double surfaceDistancePixels(double worldSize, double centerLatitude, const LatLng&, const LatLng&);
+
+    /// The location `t` of the way from `start` to `start + delta`, the longitude paced at 1 / cos(latitude) so the
+    /// globe appears to turn at a steady rate.
+    static LatLng interpolateLatLng(const LatLng& start, double deltaLatitude, double deltaLongitude, double t);
 };
 
 } // namespace mln

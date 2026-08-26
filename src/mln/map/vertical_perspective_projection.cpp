@@ -1,6 +1,7 @@
 #include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/map/transform_state.hpp>
 #include <mln/math/angles.hpp>
+#include <mln/math/wrap.hpp>
 #include <mln/tile/tile_id.hpp>
 #include <mln/util/constants.hpp>
 #include <mln/util/projection.hpp>
@@ -106,6 +107,18 @@ double distanceOfAnglesRadians(double a, double b) {
     const double twoPi = 2.0 * std::numbers::pi;
     const double d = std::fmod(std::fmod(a - b, twoPi) + twoPi, twoPi);
     return std::min(d, twoPi - d);
+}
+
+// The integral of 1 / cos(x): where the longitude gets to when the globe turns at a steady rate.
+double integrateSecant(double x) {
+    const double half = 0.5 * x;
+    const double sin = std::sin(half);
+    const double cos = std::cos(half);
+    return std::log(sin + cos) - std::log(cos - sin);
+}
+
+int sign(double value) {
+    return (value > 0) - (value < 0);
 }
 
 } // namespace
@@ -326,6 +339,42 @@ std::optional<LatLng> VerticalPerspectiveProjection::centerForLocationAtPoint(co
 
 double VerticalPerspectiveProjection::zoomAdjustment(double fromLatitude, double toLatitude) {
     return std::log2(std::cos(util::deg2rad(toLatitude)) / std::cos(util::deg2rad(fromLatitude)));
+}
+
+double VerticalPerspectiveProjection::differenceOfAnglesDegrees(double from, double to) {
+    const double a = util::wrap(from, 0.0, 360.0);
+    const double b = util::wrap(to, 0.0, 360.0);
+    const double direct = b - a;
+    const double around = b > a ? direct - 360.0 : direct + 360.0;
+    return std::abs(direct) < std::abs(around) ? direct : around;
+}
+
+double VerticalPerspectiveProjection::surfaceDistancePixels(double worldSize,
+                                                            double centerLatitude,
+                                                            const LatLng& a,
+                                                            const LatLng& b) {
+    const double radians = std::acos(std::clamp(dot(surfaceVector(a), surfaceVector(b)), -1.0, 1.0));
+    return radians * globeRadiusPixels(worldSize, centerLatitude);
+}
+
+LatLng VerticalPerspectiveProjection::interpolateLatLng(const LatLng& start,
+                                                        double deltaLatitude,
+                                                        double deltaLongitude,
+                                                        double t) {
+    const double latitude = start.latitude() + deltaLatitude * t;
+    if (std::abs(deltaLatitude) <= 1.0) {
+        return {latitude, start.longitude() + deltaLongitude * t};
+    }
+    const double endLatitude = start.latitude() + deltaLatitude;
+    const bool onDifferentHemispheres = sign(endLatitude) != sign(start.latitude());
+    const double sampleStart = util::deg2rad(onDifferentHemispheres ? -std::abs(start.latitude())
+                                                                    : std::abs(start.latitude()));
+    const double sampleEnd = util::deg2rad(std::abs(endLatitude));
+    const double valueStart = integrateSecant(sampleStart);
+    const double valueEnd = integrateSecant(sampleEnd);
+    const double valueT = integrateSecant(sampleStart + t * (sampleEnd - sampleStart));
+    const double longitudeT = (valueT - valueStart) / (valueEnd - valueStart);
+    return {latitude, start.longitude() + deltaLongitude * longitudeT};
 }
 
 ProjectionData VerticalPerspectiveProjection::getProjectionData(const TransformState& state,
