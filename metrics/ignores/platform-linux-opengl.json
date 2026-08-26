@@ -1,4 +1,3 @@
 {
-  "render-tests/projection/globe/debug-tile-borders": "The tile border is a hardware wide line on OpenGL and an anti-aliased polyline in the Metal expectation.",
-  "render-tests/projection/globe/fill-extrusion-translate": "OpenGL draws the far-side walls of the translated extrusion through the planet (3.9% of pixels); the untranslated extrusion is hidden correctly."
+  "render-tests/projection/globe/debug-tile-borders": "The tile border is a hardware wide line on OpenGL and an anti-aliased polyline in the Metal expectation."
 }
