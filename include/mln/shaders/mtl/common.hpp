@@ -291,6 +291,8 @@ inline float4 interpolateProjection(float2 posInTile, float3 spherePos, float el
     const float3 elevatedPos = spherePos * (1.0 + elevation / GLOBE_RADIUS);
     float4 globePosition = projection.matrix * float4(elevatedPos, 1.0);
     // Clip the far side of the globe through Z; the layer's depth shift keeps layer order.
+    // The layer offset is subtracted in clip space on purpose: the separation it buys grows as the camera nears the
+    // sphere, where the hemisphere's Z gradient is steepest; a constant NDC offset z-fights fill against outline.
     globePosition.z = globeComputeClippingZ(elevatedPos, projection) * globePosition.w - projection.depth_offset;
 
     if (projection.projection_transition > 0.999) {
