@@ -60,8 +60,11 @@ void LineBucket::addGeometry(const GeometryCoordinates& inputCoordinates,
         return;
     }
     const uint32_t granularity = subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z);
-    const GeometryCoordinates& coordinates = granularity >= 2 ? util::subdivideVertexLine(inputCoordinates, granularity)
-                                                              : inputCoordinates;
+    GeometryCoordinates subdivided;
+    if (granularity >= 2) {
+        subdivided = util::subdivideVertexLine(inputCoordinates, granularity);
+    }
+    const GeometryCoordinates& coordinates = granularity >= 2 ? subdivided : inputCoordinates;
     gfx::PolylineGenerator<LineLayoutVertex, SegmentBase> generator(
         vertices,
         LineBucket::layoutVertex,
