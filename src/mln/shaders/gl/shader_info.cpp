@@ -71,6 +71,7 @@ const std::vector<TextureInfo> CircleShaderInfo::textures = {};
 using CollisionBoxShaderInfo = ShaderInfo<BuiltIn::CollisionBoxShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> CollisionBoxShaderInfo::uniformBlocks = {
+    UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
     UniformBlockInfo{"CollisionDrawableUBO", idCollisionDrawableUBO},
     UniformBlockInfo{"CollisionTilePropsUBO", idCollisionTilePropsUBO},
 };
@@ -87,6 +88,7 @@ const std::vector<TextureInfo> CollisionBoxShaderInfo::textures = {};
 using CollisionCircleShaderInfo = ShaderInfo<BuiltIn::CollisionCircleShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> CollisionCircleShaderInfo::uniformBlocks = {
+    UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
     UniformBlockInfo{"CollisionDrawableUBO", idCollisionDrawableUBO},
     UniformBlockInfo{"CollisionTilePropsUBO", idCollisionTilePropsUBO},
 };
@@ -116,6 +118,7 @@ const std::vector<TextureInfo> CustomGeometryInfo::textures = {
 using CustomSymbolIconShaderInfo = ShaderInfo<BuiltIn::CustomSymbolIconShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> CustomSymbolIconShaderInfo::uniformBlocks = {
+    UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
     UniformBlockInfo{"CustomSymbolIconDrawableUBO", idCustomSymbolDrawableUBO},
 };
 const std::vector<AttributeInfo> CustomSymbolIconShaderInfo::attributes = {
@@ -130,6 +133,7 @@ const std::vector<TextureInfo> CustomSymbolIconShaderInfo::textures = {
 using DebugShaderInfo = ShaderInfo<BuiltIn::DebugShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> DebugShaderInfo::uniformBlocks = {
+    UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
     UniformBlockInfo{"DebugUBO", idDebugUBO},
 };
 const std::vector<AttributeInfo> DebugShaderInfo::attributes = {
@@ -385,6 +389,7 @@ const std::vector<TextureInfo> LineShaderInfo::textures = {};
 using LocationIndicatorInfo = ShaderInfo<BuiltIn::LocationIndicatorShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> LocationIndicatorInfo::uniformBlocks = {
+    UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
     UniformBlockInfo{"LocationIndicatorDrawableUBO", idLocationIndicatorDrawableUBO},
 };
 const std::vector<AttributeInfo> LocationIndicatorInfo::attributes = {
@@ -395,6 +400,7 @@ const std::vector<TextureInfo> LocationIndicatorInfo::textures = {};
 using LocationIndicatorTexturedInfo = ShaderInfo<BuiltIn::LocationIndicatorTexturedShader, gfx::Backend::Type::OpenGL>;
 
 const std::vector<UniformBlockInfo> LocationIndicatorTexturedInfo::uniformBlocks = {
+    UniformBlockInfo{"ProjectionUBO", idProjectionUBO},
     UniformBlockInfo{"LocationIndicatorDrawableUBO", idLocationIndicatorDrawableUBO},
 };
 const std::vector<AttributeInfo> LocationIndicatorTexturedInfo::attributes = {
