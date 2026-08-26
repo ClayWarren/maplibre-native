@@ -1993,6 +1993,7 @@ TEST(BackgroundLayer, StyleUpdateZoomDependency) {
 
 TEST(Map, GlobeHandOffKeepsTiles) {
     // Crossing the globe's Mercator hand-off must not re-parse the tiles already on screen.
+    util::RunLoop runLoop;
     std::mutex tileMutex;
     std::vector<OverscaledTileID> parsed;
     StubMapObserver observer;
