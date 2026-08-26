@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <mln/util/mat4.hpp>
 #include <mln/map/tile_projector.hpp>
 #include <mln/gfx/vertex_buffer.hpp>
@@ -77,6 +78,16 @@ private:
     float height;
 };
 
+/// The projections of one symbol's line vertices, so each vertex is projected once however many glyphs walk it.
+class LineProjectionCache {
+public:
+    void reset(std::size_t vertexCount) { points.assign(vertexCount, std::nullopt); }
+    const ProjectedTilePoint& get(std::size_t index, const GeometryCoordinates& line, const LabelPlaneProjector&);
+
+private:
+    std::vector<std::optional<ProjectedTilePoint>> points;
+};
+
 void reprojectLineLabels(gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttributes>>&,
                          const std::vector<PlacedSymbol>&,
                          const TileProjector&,
@@ -95,6 +106,7 @@ std::optional<std::pair<PlacedGlyph, PlacedGlyph>> placeFirstAndLastGlyph(float 
                                                                           const Point<float>& tileAnchorPoint,
                                                                           const PlacedSymbol& symbol,
                                                                           const LabelPlaneProjector&,
+                                                                          LineProjectionCache&,
                                                                           bool returnTileDistance);
 
 void hideGlyphs(std::size_t numGlyphs,

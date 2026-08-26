@@ -143,11 +143,13 @@ vec3 VerticalPerspectiveProjection::tileCoordinatesToSphere(const Point<double>&
     const double scale = 1.0 / static_cast<double>(1ull << tileID.canonical.z);
     const double mercatorX = tilePoint.x / util::EXTENT * scale + tileID.canonical.x * scale;
     const double mercatorY = tilePoint.y / util::EXTENT * scale + tileID.canonical.y * scale;
-    const double sphericalX = std::fmod(mercatorX * std::numbers::pi * 2.0 + std::numbers::pi, std::numbers::pi * 2.0);
-    const double sphericalY = 2.0 * std::atan(std::exp(std::numbers::pi - (mercatorY * std::numbers::pi * 2.0))) -
-                              std::numbers::pi * 0.5;
-    const double len = std::cos(sphericalY);
-    return {{std::sin(sphericalX) * len, std::sin(sphericalY), std::cos(sphericalX) * len}};
+    const double sphericalX = mercatorX * std::numbers::pi * 2.0 + std::numbers::pi;
+    // sin/cos of the latitude from the Mercator Y through the tangent half-angle identities, as the shaders do.
+    const double t = std::exp(std::numbers::pi - (mercatorY * std::numbers::pi * 2.0));
+    const double t2 = t * t;
+    const double sinY = (t2 - 1.0) / (t2 + 1.0);
+    const double cosY = (2.0 * t) / (t2 + 1.0);
+    return {{std::sin(sphericalX) * cosY, sinY, std::cos(sphericalX) * cosY}};
 }
 
 mat4 VerticalPerspectiveProjection::globeViewProjectionMatrix(const TransformState& state, double radius) {

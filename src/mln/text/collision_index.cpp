@@ -238,6 +238,8 @@ PlacedFeatureResult CollisionIndex::placeLineFeature(
     const Point<float> labelPlaneAnchorPoint{static_cast<float>(projectedLabelPlaneAnchor.x),
                                              static_cast<float>(projectedLabelPlaneAnchor.y)};
 
+    LineProjectionCache projections;
+    projections.reset(symbol.line.size());
     const auto firstAndLastGlyph = placeFirstAndLastGlyph(fontScale,
                                                           lineOffsetX,
                                                           lineOffsetY,
@@ -246,6 +248,7 @@ PlacedFeatureResult CollisionIndex::placeLineFeature(
                                                           tileUnitAnchorPoint,
                                                           symbol,
                                                           labelPlane,
+                                                          projections,
                                                           /*return tile distance*/ true);
 
     bool collisionDetected = false;

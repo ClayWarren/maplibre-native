@@ -150,10 +150,27 @@ LabelPlaneProjector::LabelPlaneProjector(const TileProjector& tile_,
     : tile(tile_),
       pitchWithMap(pitchWithMap_),
       translation(translation_),
-      pitchedLabelPlaneMatrix(getLabelPlaneMatrix(true, rotateWithMap, tile_.getTransformState(), pixelsToTileUnits)),
       width(static_cast<float>(tile_.getTransformState().getSize().width)),
       height(static_cast<float>(tile_.getTransformState().getSize().height)) {
-    matrix::invert(pitchedLabelPlaneMatrixInverse, pitchedLabelPlaneMatrix);
+    // Only pitched labels lay out in the pitched plane; the others go through the projection.
+    if (pitchWithMap) {
+        pitchedLabelPlaneMatrix = getLabelPlaneMatrix(
+            true, rotateWithMap, tile_.getTransformState(), pixelsToTileUnits);
+        matrix::invert(pitchedLabelPlaneMatrixInverse, pitchedLabelPlaneMatrix);
+    } else {
+        matrix::identity(pitchedLabelPlaneMatrix);
+        matrix::identity(pitchedLabelPlaneMatrixInverse);
+    }
+}
+
+const ProjectedTilePoint& LineProjectionCache::get(std::size_t index,
+                                                   const GeometryCoordinates& line,
+                                                   const LabelPlaneProjector& labelPlane) {
+    auto& cached = points[index];
+    if (!cached) {
+        cached = labelPlane.project(convertPoint<float>(line.at(index)));
+    }
+    return *cached;
 }
 
 ProjectedTilePoint LabelPlaneProjector::project(const Point<float>& tilePoint) const {
@@ -263,6 +280,7 @@ std::optional<PlacedGlyph> placeGlyphAlongLine(const float offsetX,
                                                const GeometryCoordinates& line,
                                                const std::vector<float>& tileDistances,
                                                const LabelPlaneProjector& labelPlane,
+                                               LineProjectionCache& projections,
                                                const bool returnTileDistance) {
     const float combinedOffsetX = flip ? offsetX - lineOffsetX : offsetX + lineOffsetX;
 
@@ -296,7 +314,7 @@ std::optional<PlacedGlyph> placeGlyphAlongLine(const float offsetX,
         }
 
         prev = current;
-        const ProjectedTilePoint projection = labelPlane.project(convertPoint<float>(line.at(currentIndex)));
+        const ProjectedTilePoint& projection = projections.get(currentIndex, line, labelPlane);
         if (projection.signedDistanceFromCamera > 0) {
             current = {static_cast<float>(projection.point.x), static_cast<float>(projection.point.y)};
         } else {
@@ -343,6 +361,7 @@ std::optional<std::pair<PlacedGlyph, PlacedGlyph>> placeFirstAndLastGlyph(const 
                                                                           const Point<float>& tileAnchorPoint,
                                                                           const PlacedSymbol& symbol,
                                                                           const LabelPlaneProjector& labelPlane,
+                                                                          LineProjectionCache& projections,
                                                                           const bool returnTileDistance) {
     if (symbol.glyphOffsets.empty()) {
         assert(false);
@@ -362,6 +381,7 @@ std::optional<std::pair<PlacedGlyph, PlacedGlyph>> placeFirstAndLastGlyph(const 
                                                                       symbol.line,
                                                                       symbol.tileDistances,
                                                                       labelPlane,
+                                                                      projections,
                                                                       returnTileDistance);
     if (!firstPlacedGlyph) return {};
 
@@ -375,6 +395,7 @@ std::optional<std::pair<PlacedGlyph, PlacedGlyph>> placeFirstAndLastGlyph(const 
                                                                      symbol.line,
                                                                      symbol.tileDistances,
                                                                      labelPlane,
+                                                                     projections,
                                                                      returnTileDistance);
     if (!lastPlacedGlyph) return {};
 
@@ -410,6 +431,7 @@ PlacementResult placeGlyphsAlongLine(const PlacedSymbol& symbol,
                                      const bool flip,
                                      const bool keepUpright,
                                      const LabelPlaneProjector& labelPlane,
+                                     LineProjectionCache& projections,
                                      gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttributes>>& dynamicVertexArray,
                                      const Point<float>& projectedAnchorPoint,
                                      const float aspectRatio) {
@@ -428,6 +450,7 @@ PlacementResult placeGlyphsAlongLine(const PlacedSymbol& symbol,
             symbol.anchorPoint,
             symbol,
             labelPlane,
+            projections,
             false);
         if (!firstAndLastGlyph) {
             return PlacementResult::NotEnoughRoom;
@@ -459,6 +482,7 @@ PlacementResult placeGlyphsAlongLine(const PlacedSymbol& symbol,
                                                    symbol.line,
                                                    symbol.tileDistances,
                                                    labelPlane,
+                                                   projections,
                                                    false);
             if (placedGlyph) {
                 placedGlyphs.push_back(*placedGlyph);
@@ -503,6 +527,7 @@ PlacementResult placeGlyphsAlongLine(const PlacedSymbol& symbol,
                                                                      symbol.line,
                                                                      symbol.tileDistances,
                                                                      labelPlane,
+                                                                     projections,
                                                                      false);
         if (!singleGlyph) return PlacementResult::NotEnoughRoom;
 
@@ -543,6 +568,7 @@ void reprojectLineLabels(gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttrib
     dynamicVertexArray.clear();
 
     bool useVertical = false;
+    LineProjectionCache projections;
 
     for (auto& placedSymbol : placedSymbols) {
         // Don't do calculations for vertical glyphs unless the previous symbol
@@ -579,11 +605,13 @@ void reprojectLineLabels(gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttrib
         const auto projectedAnchor = labelPlane.project(placedSymbol.anchorPoint).point;
         const Point<float> anchorPoint{static_cast<float>(projectedAnchor.x), static_cast<float>(projectedAnchor.y)};
 
+        projections.reset(placedSymbol.line.size());
         PlacementResult placeUnflipped = placeGlyphsAlongLine(placedSymbol,
                                                               pitchScaledFontSize,
                                                               false /*unflipped*/,
                                                               keepUpright,
                                                               labelPlane,
+                                                              projections,
                                                               dynamicVertexArray,
                                                               anchorPoint,
                                                               state.getSize().aspectRatio());
@@ -597,6 +625,7 @@ void reprojectLineLabels(gfx::VertexVector<gfx::Vertex<SymbolDynamicLayoutAttrib
                                   true /*flipped*/,
                                   keepUpright,
                                   labelPlane,
+                                  projections,
                                   dynamicVertexArray,
                                   anchorPoint,
                                   state.getSize().aspectRatio()) == PlacementResult::NotEnoughRoom)) {
