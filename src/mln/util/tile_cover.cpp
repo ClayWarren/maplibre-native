@@ -1,3 +1,5 @@
+#include <array>
+#include <span>
 #include <mln/math/log2.hpp>
 #include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/util/bounding_volumes.hpp>
@@ -165,16 +167,24 @@ int32_t coveringZoomLevel(double zoom, style::SourceType type, uint16_t size) no
 namespace {
 namespace globe {
 
+// A tile's bounding volume in unit-sphere space: a box at zoom 0 and 1, a wedge with up to eight corners after.
 struct ConvexVolume {
-    std::vector<vec3> points;
-    std::vector<vec4> planes;
+    std::array<vec3, 8> points{};
+    std::size_t pointCount = 0;
+    std::array<vec4, 6> planes{};
+
+    void addPoint(const vec3& point) {
+        assert(pointCount < points.size());
+        points[pointCount++] = point;
+    }
 };
 
 IntersectionResult intersectsFrustum(const ConvexVolume& volume, const Frustum& frustum) {
     bool fullyInside = true;
     for (const vec4& plane : frustum.getPlanes()) {
         std::size_t passed = 0;
-        for (const vec3& point : volume.points) {
+        for (std::size_t i = 0; i < volume.pointCount; ++i) {
+            const vec3& point = volume.points[i];
             if (plane[0] * point[0] + plane[1] * point[1] + plane[2] * point[2] + plane[3] >= 0) {
                 passed++;
             }
@@ -182,7 +192,7 @@ IntersectionResult intersectsFrustum(const ConvexVolume& volume, const Frustum& 
         if (passed == 0) {
             return IntersectionResult::Separate;
         }
-        if (passed < volume.points.size()) {
+        if (passed < volume.pointCount) {
             fullyInside = false;
         }
     }
@@ -205,12 +215,13 @@ IntersectionResult intersectsFrustum(const ConvexVolume& volume, const Frustum& 
 
 IntersectionResult intersectsPlane(const ConvexVolume& volume, const vec4& plane) {
     std::size_t positive = 0;
-    for (const vec3& point : volume.points) {
+    for (std::size_t i = 0; i < volume.pointCount; ++i) {
+        const vec3& point = volume.points[i];
         if (plane[0] * point[0] + plane[1] * point[1] + plane[2] * point[2] + plane[3] >= 0) {
             positive++;
         }
     }
-    if (positive == volume.points.size()) {
+    if (positive == volume.pointCount) {
         return IntersectionResult::Contains;
     }
     if (positive == 0) {
@@ -251,7 +262,7 @@ vec3 threePlaneIntersection(const vec4& p0, const vec4& p1, const vec4& p2) {
 ConvexVolume aabbVolume(const vec3& min, const vec3& max) {
     ConvexVolume volume;
     for (int i = 0; i < 8; i++) {
-        volume.points.push_back({{(i & 1) ? max[0] : min[0], (i & 2) ? max[1] : min[1], (i & 4) ? max[2] : min[2]}});
+        volume.addPoint({{(i & 1) ? max[0] : min[0], (i & 2) ? max[1] : min[1], (i & 4) ? max[2] : min[2]}});
     }
     volume.planes = {{{{-1, 0, 0, max[0]}},
                       {{1, 0, 0, -min[0]}},
@@ -262,7 +273,7 @@ ConvexVolume aabbVolume(const vec3& min, const vec3& max) {
     return volume;
 }
 
-std::pair<double, double> axisMinMax(const vec3& axis, const std::vector<vec3>& points) {
+std::pair<double, double> axisMinMax(const vec3& axis, std::span<const vec3> points) {
     double min = std::numeric_limits<double>::infinity();
     double max = -std::numeric_limits<double>::infinity();
     for (const vec3& point : points) {
@@ -290,13 +301,18 @@ ConvexVolume tileBoundingVolume(const CanonicalTileID& tile) {
                                           toSphere(util::EXTENT, 0, tile),
                                           toSphere(util::EXTENT, util::EXTENT, tile),
                                           toSphere(0, util::EXTENT, tile)}};
-    std::vector<vec3> extremes(corners.begin(), corners.end());
+    // Corners, a pole if the tile touches one, the center, and the bulging edge midpoint.
+    std::array<vec3, 7> extremes;
+    std::size_t extremeCount = 0;
+    for (const vec3& corner : corners) {
+        extremes[extremeCount++] = corner;
+    }
     const uint32_t lastRow = (1u << tile.z) - 1;
     if (tile.y == 0) {
-        extremes.push_back({{0, 1, 0}});
+        extremes[extremeCount++] = {{0, 1, 0}};
     }
     if (tile.y == lastRow) {
-        extremes.push_back({{0, -1, 0}});
+        extremes[extremeCount++] = {{0, -1, 0}};
     }
 
     // The up/down axis is the tile center; north/south is orthogonal to it; the east and west planes follow
@@ -307,17 +323,18 @@ ConvexVolume tileBoundingVolume(const CanonicalTileID& tile) {
     const vec3 axisEast = vec3Normalize(vec3Cross(corners[2], corners[1]));
     const vec3 axisWest = vec3Normalize(vec3Cross(corners[0], corners[3]));
 
-    extremes.push_back(center);
+    extremes[extremeCount++] = center;
     // The edge midpoint that bulges away from the center: the north edge in the south hemisphere, the south edge in the
     // north.
     if (tile.y >= (1u << tile.z) / 2) {
-        extremes.push_back(toSphere(util::EXTENT / 2.0, 0, tile));
+        extremes[extremeCount++] = toSphere(util::EXTENT / 2.0, 0, tile);
     } else {
-        extremes.push_back(toSphere(util::EXTENT / 2.0, util::EXTENT, tile));
+        extremes[extremeCount++] = toSphere(util::EXTENT / 2.0, util::EXTENT, tile);
     }
+    const std::span<const vec3> extremeSpan(extremes.data(), extremeCount);
 
-    const auto [upMin, upMax] = axisMinMax(center, extremes);
-    const auto [northMin, northMax] = axisMinMax(north, extremes);
+    const auto [upMin, upMax] = axisMinMax(center, extremeSpan);
+    const auto [northMin, northMax] = axisMinMax(north, extremeSpan);
     const vec4 planeUp = {{-center[0], -center[1], -center[2], upMax}};
     const vec4 planeDown = {{center[0], center[1], center[2], -upMin}};
     const vec4 planeNorth = {{-north[0], -north[1], -north[2], northMax}};
@@ -327,22 +344,22 @@ ConvexVolume tileBoundingVolume(const CanonicalTileID& tile) {
 
     ConvexVolume volume;
     if (tile.y == 0) {
-        volume.points.push_back(threePlaneIntersection(planeWest, planeEast, planeUp));
-        volume.points.push_back(threePlaneIntersection(planeWest, planeEast, planeDown));
+        volume.addPoint(threePlaneIntersection(planeWest, planeEast, planeUp));
+        volume.addPoint(threePlaneIntersection(planeWest, planeEast, planeDown));
     } else {
-        volume.points.push_back(threePlaneIntersection(planeNorth, planeEast, planeUp));
-        volume.points.push_back(threePlaneIntersection(planeNorth, planeEast, planeDown));
-        volume.points.push_back(threePlaneIntersection(planeNorth, planeWest, planeUp));
-        volume.points.push_back(threePlaneIntersection(planeNorth, planeWest, planeDown));
+        volume.addPoint(threePlaneIntersection(planeNorth, planeEast, planeUp));
+        volume.addPoint(threePlaneIntersection(planeNorth, planeEast, planeDown));
+        volume.addPoint(threePlaneIntersection(planeNorth, planeWest, planeUp));
+        volume.addPoint(threePlaneIntersection(planeNorth, planeWest, planeDown));
     }
     if (tile.y == lastRow) {
-        volume.points.push_back(threePlaneIntersection(planeWest, planeEast, planeUp));
-        volume.points.push_back(threePlaneIntersection(planeWest, planeEast, planeDown));
+        volume.addPoint(threePlaneIntersection(planeWest, planeEast, planeUp));
+        volume.addPoint(threePlaneIntersection(planeWest, planeEast, planeDown));
     } else {
-        volume.points.push_back(threePlaneIntersection(planeSouth, planeEast, planeUp));
-        volume.points.push_back(threePlaneIntersection(planeSouth, planeEast, planeDown));
-        volume.points.push_back(threePlaneIntersection(planeSouth, planeWest, planeUp));
-        volume.points.push_back(threePlaneIntersection(planeSouth, planeWest, planeDown));
+        volume.addPoint(threePlaneIntersection(planeSouth, planeEast, planeUp));
+        volume.addPoint(threePlaneIntersection(planeSouth, planeEast, planeDown));
+        volume.addPoint(threePlaneIntersection(planeSouth, planeWest, planeUp));
+        volume.addPoint(threePlaneIntersection(planeSouth, planeWest, planeDown));
     }
     volume.planes = {planeUp, planeDown, planeNorth, planeSouth, planeEast, planeWest};
     return volume;
@@ -410,25 +427,37 @@ double integralOfCosXByP(double p, double x1, double x2) {
     return sum;
 }
 
-// GL JS `createCalculateTileZoomFunction(9.314, 3.0)`: the zoom a tile is loaded at when the view is pitched.
-double calculateTileZoom(double requestedCenterZoom,
+constexpr double maxMercatorHorizonAngle = 89.25;
+
+constexpr double deg2rad(double d) {
+    return d * std::numbers::pi / 180.0;
+}
+
+// The parts of GL JS `createCalculateTileZoomFunction(9.314, 3.0)` that depend on the camera alone.
+struct TileZoomConstants {
+    double pitchTileLoadingBehavior;
+    double tileCountPitch0;
+
+    explicit TileZoomConstants(double cameraVerticalFOV)
+        : pitchTileLoadingBehavior(2 * ((maxZoomLevelsOnScreen - 1) /
+                                            std::log2(std::cos(deg2rad(maxMercatorHorizonAngle - cameraVerticalFOV)) /
+                                                      std::cos(deg2rad(maxMercatorHorizonAngle))) -
+                                        1)),
+          tileCountPitch0(2 * integralOfCosXByP(pitchTileLoadingBehavior - 1, 0, deg2rad(cameraVerticalFOV / 2))) {}
+
+    static constexpr double maxZoomLevelsOnScreen = 9.314;
+    static constexpr double tileCountMaxMinRatio = 3.0;
+};
+
+// The zoom a tile is loaded at when the view is pitched.
+double calculateTileZoom(const TileZoomConstants& constants,
+                         double requestedCenterZoom,
                          double distanceToTile2D,
                          double distanceToTileZ,
                          double distanceToCenter3D,
                          double cameraVerticalFOV) {
-    constexpr double maxZoomLevelsOnScreen = 9.314;
-    constexpr double tileCountMaxMinRatio = 3.0;
-    constexpr double maxMercatorHorizonAngle = 89.25;
-    const auto deg2rad = [](double d) {
-        return d * std::numbers::pi / 180.0;
-    };
-    const double pitchTileLoadingBehavior =
-        2 * ((maxZoomLevelsOnScreen - 1) / std::log2(std::cos(deg2rad(maxMercatorHorizonAngle - cameraVerticalFOV)) /
-                                                     std::cos(deg2rad(maxMercatorHorizonAngle))) -
-             1);
+    const double pitchTileLoadingBehavior = constants.pitchTileLoadingBehavior;
     const double centerPitch = std::acos(std::min(1.0, distanceToTileZ / distanceToCenter3D));
-    const double tileCountPitch0 = 2 *
-                                   integralOfCosXByP(pitchTileLoadingBehavior - 1, 0, deg2rad(cameraVerticalFOV / 2));
     const double highestPitch = std::min(deg2rad(maxMercatorHorizonAngle),
                                          centerPitch + deg2rad(cameraVerticalFOV / 2));
     const double lowestPitch = std::min(highestPitch, centerPitch - deg2rad(cameraVerticalFOV / 2));
@@ -439,7 +468,8 @@ double calculateTileZoom(double requestedCenterZoom,
     desired += std::log2(distanceToCenter3D / distanceToTile3D /
                          std::max(0.5, std::cos(deg2rad(cameraVerticalFOV / 2))));
     desired += pitchTileLoadingBehavior * std::log2(std::cos(thisTilePitch)) / 2;
-    desired -= std::log2(std::max(1.0, tileCount / tileCountPitch0 / tileCountMaxMinRatio)) / 2;
+    desired -=
+        std::log2(std::max(1.0, tileCount / constants.tileCountPitch0 / TileZoomConstants::tileCountMaxMinRatio)) / 2;
     return desired;
 }
 
@@ -484,9 +514,12 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
     const double distanceToCenter3d = std::hypot(distanceToCenter2d, distanceZ);
     const double requestedCenterZoom = transform.getZoom() + (z - std::floor(transform.getZoom()));
     const double fovDegrees = transform.getFieldOfView() * 180.0 / std::numbers::pi;
+    const TileZoomConstants zoomConstants(fovDegrees);
 
     std::vector<Node> stack;
     std::vector<ResultTile> result;
+    stack.reserve(64);
+    result.reserve(64);
     stack.push_back({.zoom = 0, .x = 0, .y = 0, .wrap = 0, .fullyVisible = false});
 
     while (!stack.empty()) {
@@ -504,8 +537,8 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
         double desiredZ = z;
         if (allowVariableZoom) {
             const double distToTile2d = distanceToTile2d(cameraCoord[0], cameraCoord[1], tile);
-            desiredZ = std::floor(
-                calculateTileZoom(requestedCenterZoom, distToTile2d, distanceZ, distanceToCenter3d, fovDegrees));
+            desiredZ = std::floor(calculateTileZoom(
+                zoomConstants, requestedCenterZoom, distToTile2d, distanceZ, distanceToCenter3d, fovDegrees));
         }
         const auto targetZoom = static_cast<uint8_t>(std::clamp(desiredZ, 0.0, static_cast<double>(maxZoom)));
         node.wrap = wrapFor(centerCoord[0], tile);
