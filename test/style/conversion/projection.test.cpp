@@ -77,3 +77,20 @@ TEST(StyleConversion, Projection) {
         ASSERT_EQ("value must be a string or an array of [from, to, transition]", error.message);
     }
 }
+
+TEST(StyleConversion, ProjectionSubdivisionGranularity) {
+    Error error;
+    auto granularity = [&](const std::string& src) {
+        auto projection = convertJSON<Projection>(src, error);
+        EXPECT_TRUE(projection) << error.message;
+        return projection->impl->getSubdivisionGranularity();
+    };
+    // Only a style that never renders a globe keeps the flat, unsubdivided geometry.
+    EXPECT_EQ(SubdivisionGranularitySetting::none(), granularity("{}"));
+    EXPECT_EQ(SubdivisionGranularitySetting::none(), granularity(R"({"type":"mercator"})"));
+    EXPECT_EQ(SubdivisionGranularitySetting::globe(), granularity(R"({"type":"globe"})"));
+    EXPECT_EQ(SubdivisionGranularitySetting::globe(), granularity(R"({"type":"vertical-perspective"})"));
+    EXPECT_EQ(SubdivisionGranularitySetting::globe(), granularity(R"({"type":["mercator","vertical-perspective",0]})"));
+    EXPECT_EQ(SubdivisionGranularitySetting::globe(),
+              granularity(R"({"type":["interpolate",["linear"],["zoom"],10,"vertical-perspective",12,"mercator"]})"));
+}

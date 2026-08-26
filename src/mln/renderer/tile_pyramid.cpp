@@ -62,11 +62,9 @@ void TilePyramid::update(const std::vector<Immutable<style::LayerProperties>>& l
                          const Range<uint8_t> zoomRange,
                          std::optional<LatLngBounds> bounds,
                          std::function<std::unique_ptr<Tile>(const OverscaledTileID&, TileObserver*)> createTile) {
-    const bool globeRendering = parameters.transformState.isGlobeRendering();
-    const auto subdivisionGranularity = globeRendering ? SubdivisionGranularitySetting::globe()
-                                                       : SubdivisionGranularitySetting::none();
-    const bool relayout = needsRelayout || globeRendering != lastGlobeRendering;
-    lastGlobeRendering = globeRendering;
+    const auto& subdivisionGranularity = parameters.subdivisionGranularity;
+    const bool relayout = needsRelayout || subdivisionGranularity != lastSubdivisionGranularity;
+    lastSubdivisionGranularity = subdivisionGranularity;
 
     // If we need a relayout, abandon any cached tiles; they're now stale.
     if (relayout) {

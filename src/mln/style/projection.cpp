@@ -65,6 +65,13 @@ StyleProperty Projection::getProperty(const std::string& name) const {
     return {};
 }
 
+SubdivisionGranularitySetting Projection::Impl::getSubdivisionGranularity() const {
+    if (type.isUndefined() || (type.isConstant() && type.asConstant() == ProjectionDefinition("mercator"))) {
+        return SubdivisionGranularitySetting::none();
+    }
+    return SubdivisionGranularitySetting::globe();
+}
+
 ProjectionDefinition Projection::Impl::evaluate(float zoom) const {
     const PropertyEvaluationParameters parameters(zoom);
     const auto definition = type.evaluate(
