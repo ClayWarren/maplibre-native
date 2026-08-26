@@ -194,13 +194,6 @@ void PaintParameters::clearStencil() {
 }
 
 bool PaintParameters::renderTileClippingMasks(const RenderTiles& renderTiles) {
-#if MLN_RENDER_BACKEND_OPENGL
-    // The GL globe clip masks are still to come; GL draws the globe unclipped until then.
-    if (state.isGlobeRendering()) {
-        return true;
-    }
-#endif
-
     // We can avoid updating the mask if it already contains the same set of tiles.
     if (!renderTiles || tileIDsCovered(renderTiles, tileClippingMaskIDs)) {
         return true;
@@ -363,6 +356,30 @@ bool PaintParameters::renderTileClippingMasks(const RenderTiles& renderTiles) {
     }
 
 #elif MLN_RENDER_BACKEND_OPENGL
+    if (state.isGlobeRendering()) {
+        std::vector<shaders::GlobeClipMask> globeMasks;
+        for (const auto& tileRef : *renderTiles) {
+            const auto& tileID = tileRef.get().id;
+            const int32_t stencilID = nextStencilID;
+            if (!tileClippingMaskIDs.insert(std::make_pair(tileID, stencilID)).second) {
+                continue;
+            }
+            nextStencilID++;
+            globeMasks.push_back({.projection = LayerTweaker::toProjectionUBO(projectionDataForTile(tileID)),
+                                  .stencilRef = static_cast<uint32_t>(stencilID),
+                                  .tile = tileID.canonical});
+        }
+        if (!globeMasks.empty()) {
+            auto& glContext = static_cast<gl::Context&>(context);
+            if (!glContext.renderGlobeTileClippingMasks(*this, staticData, globeMasks)) {
+                tileClippingMaskIDs.clear();
+                return false;
+            }
+            glContext.renderingStats().stencilUpdates++;
+        }
+        return true;
+    }
+
     auto program = staticData.shaders->getLegacyGroup().get<ClippingMaskProgram>();
 
     if (!program) {
@@ -420,11 +437,6 @@ bool PaintParameters::renderTileClippingMasks(const RenderTiles& renderTiles) {
 }
 
 gfx::StencilMode PaintParameters::stencilModeForClipping(const UnwrappedTileID& tileID) const {
-#if MLN_RENDER_BACKEND_OPENGL
-    if (state.isGlobeRendering()) {
-        return gfx::StencilMode::disabled();
-    }
-#endif
     auto it = tileClippingMaskIDs.find(tileID);
     assert(it != tileClippingMaskIDs.end());
     const int32_t id = it != tileClippingMaskIDs.end() ? it->second : 0b00000000;
