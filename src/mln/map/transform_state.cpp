@@ -322,7 +322,7 @@ void TransformState::updateStateFromCamera() {
 
     // Compute center point of the map
     const Point<double> mercatorPoint = {position[0] + dx * travel, position[1] + dy * travel};
-    setLatLngZoom(latLngFromMercator(mercatorPoint), scaleZoom(newScale));
+    setLatLngZoom(latLngFromMercator(mercatorPoint), std::min(zoom, scaleZoom(max_scale)));
 
     const double mercatorZ = position[2] + dz * travel;
     double alt_m = mercatorZ * Projection::getMetersPerPixelAtLatitude(getLatLng().latitude(), 0) * util::tileSize_D;
@@ -562,8 +562,23 @@ double TransformState::getZoom() const {
     return scaleZoom(scale);
 }
 
+double TransformState::getMinZoomAtLatitude(double latitude) const {
+    const double minZoom = getMinZoom();
+    if (!isGlobeRendering()) {
+        return minZoom;
+    }
+    return minZoom + VerticalPerspectiveProjection::zoomAdjustment(0, latitude);
+}
+
+LatLng TransformState::constrainedCenter(const LatLng& latLng) const {
+    if (constrainMode == ConstrainMode::None || !isGlobeRendering()) {
+        return latLng;
+    }
+    return {util::clamp(latLng.latitude(), -util::LATITUDE_MAX, util::LATITUDE_MAX), latLng.longitude()};
+}
+
 uint8_t TransformState::getIntegerZoom() const {
-    return static_cast<uint8_t>(getZoom());
+    return static_cast<uint8_t>(std::max(0.0, getZoom()));
 }
 
 double TransformState::getZoomFraction() const {
@@ -1075,9 +1090,10 @@ ScreenCoordinate TransformState::getCenterOffset() const {
 void TransformState::moveLatLng(const LatLng& latLng, const ScreenCoordinate& anchor) {
     if (isGlobeRendering()) {
         if (const auto center = VerticalPerspectiveProjection::centerForLocationAtPoint(*this, latLng, anchor)) {
+            const LatLng target = constrainedCenter(*center);
             const double zoom = getZoom() + VerticalPerspectiveProjection::zoomAdjustment(getLatLng().latitude(),
-                                                                                          center->latitude());
-            setLatLngZoom(*center, zoom);
+                                                                                          target.latitude());
+            setLatLngZoom(target, zoom);
         }
         return;
     }
@@ -1091,7 +1107,7 @@ void TransformState::setLatLngZoom(const LatLng& latLng, double zoom) {
     LatLng constrained = latLng;
     constrained = bounds.constrain(latLng);
 
-    double newScale = util::clamp(zoomScale(zoom), min_scale, max_scale);
+    double newScale = util::clamp(zoomScale(zoom), zoomScale(getMinZoomAtLatitude(constrained.latitude())), max_scale);
     const double newWorldSize = newScale * util::tileSize_D;
     Bc = newWorldSize / util::DEGREES_MAX;
     Cc = newWorldSize / util::M2PI;

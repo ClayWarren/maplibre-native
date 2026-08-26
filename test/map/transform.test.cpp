@@ -1480,16 +1480,64 @@ TEST(GlobeTransform, AnchoredZoomKeepsTheAnchorInPlace) {
 TEST(GlobeTransform, PolesAreReachableAndZoomFollowsLatitude) {
     Transform transform;
     setUpGlobe(transform, {0.0, 0.0}, 0.0);
+    const double radiusAtEquator = VerticalPerspectiveProjection::globeRadiusPixels(
+        transform.getState().getScale() * util::tileSize_D, 0.0);
     transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}));
     EXPECT_NEAR(80.0, transform.getLatLng().latitude(), 1e-9);
-    // Moving the center towards the pole would lower the zoom by log2(cos 80); the minimum zoom still applies.
-    EXPECT_DOUBLE_EQ(0.0, transform.getZoom());
+    // Moving the center towards the pole lowers the zoom by log2(cos 80), below the map's minimum zoom of 0, so the
+    // planet keeps its size on screen.
+    EXPECT_NEAR(VerticalPerspectiveProjection::zoomAdjustment(0.0, 80.0), transform.getZoom(), 1e-9);
+    EXPECT_NEAR(
+        radiusAtEquator,
+        VerticalPerspectiveProjection::globeRadiusPixels(transform.getState().getScale() * util::tileSize_D, 80.0),
+        1e-6);
     transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}).withZoom(3.0));
     transform.jumpTo(CameraOptions().withCenter(LatLng{0.0, 0.0}));
     EXPECT_NEAR(3.0 + VerticalPerspectiveProjection::zoomAdjustment(80.0, 0.0), transform.getZoom(), 1e-9);
 
+    // Past the Mercator limit the center clamps, and the zoom follows the clamped center: the planet keeps its size.
+    const double radiusBefore = VerticalPerspectiveProjection::globeRadiusPixels(
+        transform.getState().getScale() * util::tileSize_D, transform.getLatLng().latitude());
     transform.jumpTo(CameraOptions().withCenter(LatLng{89.0, 0.0}));
     EXPECT_NEAR(util::LATITUDE_MAX, transform.getLatLng().latitude(), 1e-6);
+    EXPECT_NEAR(radiusBefore,
+                VerticalPerspectiveProjection::globeRadiusPixels(transform.getState().getScale() * util::tileSize_D,
+                                                                 transform.getLatLng().latitude()),
+                1e-6);
+    transform.moveBy({0.0, 300.0});
+    EXPECT_NEAR(util::LATITUDE_MAX, transform.getLatLng().latitude(), 1e-6);
+    EXPECT_NEAR(radiusBefore,
+                VerticalPerspectiveProjection::globeRadiusPixels(transform.getState().getScale() * util::tileSize_D,
+                                                                 transform.getLatLng().latitude()),
+                1e-6);
+}
+
+TEST(GlobeTransform, MinZoomFollowsLatitude) {
+    Transform transform;
+    setUpGlobe(transform, {0.0, 0.0}, 2.0);
+    const TransformState& state = transform.getState();
+    EXPECT_DOUBLE_EQ(0.0, state.getMinZoom());
+    EXPECT_DOUBLE_EQ(0.0, state.getMinZoomAtLatitude(0.0));
+    EXPECT_NEAR(-1.0, state.getMinZoomAtLatitude(60.0), 1e-12);
+    EXPECT_NEAR(std::log2(std::cos(util::deg2rad(80.0))), state.getMinZoomAtLatitude(80.0), 1e-12);
+
+    // Zoom requests clamp to the floor at the requested center, not at the equator's.
+    transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}).withZoom(-5.0));
+    EXPECT_NEAR(state.getMinZoomAtLatitude(80.0), transform.getZoom(), 1e-9);
+    transform.jumpTo(CameraOptions().withCenter(LatLng{0.0, 0.0}).withZoom(-1.0));
+    EXPECT_DOUBLE_EQ(0.0, transform.getZoom());
+    EXPECT_EQ(0, state.getIntegerZoom());
+
+    // Integer zoom never wraps below zero.
+    transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}).withZoom(-2.0));
+    EXPECT_NEAR(-2.0, transform.getZoom(), 1e-9);
+    EXPECT_EQ(0, state.getIntegerZoom());
+
+    // Mercator keeps the plain minimum.
+    transform.setProjectionDefinition(ProjectionDefinition("mercator"));
+    EXPECT_DOUBLE_EQ(state.getMinZoom(), state.getMinZoomAtLatitude(80.0));
+    transform.jumpTo(CameraOptions().withCenter(LatLng{80.0, 0.0}).withZoom(-2.0));
+    EXPECT_GE(transform.getZoom(), 0.0);
 }
 
 TEST(GlobeTransform, ZoomAdjustment) {
