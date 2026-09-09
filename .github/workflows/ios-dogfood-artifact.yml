@@ -1,0 +1,73 @@
+name: iOS dogfood artifact
+
+on:
+  push:
+    branches: [codex/dogfood-globe-5]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Build dynamic Metal XCFramework
+        working-directory: platform/ios
+        shell: bash
+        run: |
+          set -euo pipefail
+          bazel build --compilation_mode=opt --features=dead_strip,thin_lto --objc_enable_binary_stripping \
+            --apple_generate_dsym --output_groups=+dsyms --//:renderer=metal \
+            //platform/ios:MapLibre.dynamic --embed_label="dogfood_${GITHUB_SHA}"
+          artifact="$(bazel info execution_root)/$(bazel cquery --output=files --compilation_mode=opt --//:renderer=metal //platform/ios:MapLibre.dynamic)"
+          cp "$artifact" "$GITHUB_WORKSPACE/MapLibre.dynamic.xcframework.zip"
+
+      - name: Verify slices and sky API and record provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +w MapLibre.dynamic.xcframework.zip
+          zip MapLibre.dynamic.xcframework.zip LICENSE.md
+          mkdir verified
+          unzip -q MapLibre.dynamic.xcframework.zip -d verified
+          python3 - <<'PY'
+          import pathlib
+          import plistlib
+          import subprocess
+          roots = list(pathlib.Path('verified').glob('*.xcframework'))
+          assert len(roots) == 1, roots
+          root = roots[0]
+          info = plistlib.loads((root / 'Info.plist').read_bytes())
+          seen = set()
+          for library in info['AvailableLibraries']:
+              assert library['SupportedPlatform'] == 'ios', library
+              variant = library.get('SupportedPlatformVariant', 'device')
+              expected = {'device': {'arm64'}, 'simulator': {'arm64', 'x86_64'}}[variant]
+              assert set(library['SupportedArchitectures']) == expected, library
+              framework = root / library['LibraryIdentifier'] / library['LibraryPath']
+              assert (framework / 'Headers' / 'MLNSky.h').is_file(), framework
+              binary = framework / framework.stem
+              actual = subprocess.check_output(['lipo', '-archs', str(binary)], text=True).split()
+              assert set(actual) == expected, actual
+              subprocess.run(['xcrun', 'vtool', '-show-build', str(binary)], check=True)
+              seen.add(variant)
+          assert seen == {'device', 'simulator'}, seen
+          PY
+          git rev-parse HEAD > provenance.txt
+          shasum -a 256 MapLibre.dynamic.xcframework.zip >> provenance.txt
+          xcodebuild -version >> provenance.txt
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-dogfood-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            MapLibre.dynamic.xcframework.zip
+            provenance.txt
