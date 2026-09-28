@@ -31,6 +31,12 @@ public:
     void setAtmosphereBlendTransition(const TransitionOptions&);
     TransitionOptions getAtmosphereBlendTransition() const;
 
+    static Color getDefaultBackdropColor();
+    PropertyValue<Color> getBackdropColor() const;
+    void setBackdropColor(PropertyValue<Color>);
+    void setBackdropColorTransition(const TransitionOptions&);
+    TransitionOptions getBackdropColorTransition() const;
+
     static Color getDefaultFogColor();
     PropertyValue<Color> getFogColor() const;
     void setFogColor(PropertyValue<Color>);
@@ -66,6 +72,12 @@ public:
     void setSkyHorizonBlend(PropertyValue<float>);
     void setSkyHorizonBlendTransition(const TransitionOptions&);
     TransitionOptions getSkyHorizonBlendTransition() const;
+
+    static float getDefaultStarOpacity();
+    PropertyValue<float> getStarOpacity() const;
+    void setStarOpacity(PropertyValue<float>);
+    void setStarOpacityTransition(const TransitionOptions&);
+    TransitionOptions getStarOpacityTransition() const;
 
     class Impl;
     Immutable<Impl> impl;

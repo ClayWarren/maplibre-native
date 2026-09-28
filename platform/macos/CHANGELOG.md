@@ -4,6 +4,7 @@ MapLibre welcomes participation and contributions from everyone. Please read [`C
 
 ## main
 
+- Fork: add opt-in renderer-owned stars with `star-opacity` and `backdrop-color` sky properties, including zoom expressions and transitions.
 - Add nullable `MLNSky` runtime styling with zoom expressions, transitions, and removal.
 
 ## 6.27.0

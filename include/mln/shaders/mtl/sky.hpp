@@ -27,6 +27,13 @@ struct alignas(16) SkyPropsUBO {
     float2 viewport_size;
     float sky_horizon_blend;
     float sky_blend;
+    float4 backdrop_color;
+    float4x4 star_matrix;
+    float4x4 inv_view_projection;
+    float4 camera_position;
+    float star_opacity;
+    float pixel_ratio;
+    float2 padding;
 };
 
 struct alignas(16) AtmospherePropsUBO {
@@ -49,40 +56,77 @@ struct ShaderSource<BuiltIn::SkyShader, gfx::Backend::Type::Metal> {
 
     static constexpr auto prelude = skyShaderPrelude;
     static constexpr auto source = R"(
-
 struct SkyVertexStage {
     short2 position [[attribute(0)]];
 };
-
 struct SkyFragmentStage {
     float4 position [[position, invariant]];
     float2 pos;
+    float3 star;
 };
+SkyFragmentStage vertex vertexMain(SkyVertexStage in [[stage_in]],
+                                   constant SkyPropsUBO& sky [[buffer(idSkyPropsUBO)]]) {
+    float2 a_pos = float2(in.position);
+    float2 v_pos;
+    float3 v_star;
+    float4 gl_Position;
+    v_pos = a_pos;
+    v_star = float3(0.0);
+    gl_Position = float4(a_pos, 1.0, 1.0);
+    if (a_pos.x >= 2.0) {
+        float index = a_pos.x - 2.0;
+        float height = 1.0 - 2.0 * (index + 0.5) / 2048.0;
+        float longitude = index * 2.399963229728653;
+        float radius = sqrt(max(0.0, 1.0 - height * height));
+        float3 direction = float3(sin(longitude) * radius, height, cos(longitude) * radius);
+        float2 corner = float2(a_pos.y == 1.0 || a_pos.y == 2.0 ? 1.0 : -1.0,
+                           a_pos.y >= 2.0 ? 1.0 : -1.0);
+        float magnitude = fmod(index * 73.0, 101.0) / 100.0;
+        float size = 0.75 + magnitude * magnitude;
+        float4 projected = sky.star_matrix * float4(direction, 0.0);
+        projected.xy += corner * size * 2.0 * sky.pixel_ratio / sky.viewport_size * projected.w;
+        gl_Position = float4(projected.xy, projected.w, projected.w);
+        v_pos = projected.xy / projected.w;
+        v_star = float3(corner, 0.25 + 0.75 * magnitude);
+    }
 
-SkyFragmentStage vertex vertexMain(SkyVertexStage in [[stage_in]]) {
-    const float2 pos = float2(in.position);
-    return {
-        .position = float4(pos, 1.0, 1.0),
-        .pos = pos,
-    };
+    return {.position = gl_Position, .pos = v_pos, .star = v_star};
 }
-
 half4 fragment fragmentMain(SkyFragmentStage in [[stage_in]],
-                            device const SkyPropsUBO& sky [[buffer(idSkyPropsUBO)]]) {
-    const float2 pixel = (in.pos * 0.5 + 0.5) * sky.viewport_size;
-    const float distanceToHorizon = dot(pixel - sky.horizon, sky.horizon_normal);
+                            constant SkyPropsUBO& sky [[buffer(idSkyPropsUBO)]]) {
+    float2 v_pos = in.pos;
+    float3 v_star = in.star;
+    float4 fragColor;
+    float2 pixel = (v_pos * 0.5 + 0.5) * sky.viewport_size;
+    float distance_to_horizon = dot(pixel - sky.horizon, sky.horizon_normal);
     float4 color = float4(0.0);
-
-    if (distanceToHorizon > 0.0) {
-        if (sky.sky_horizon_blend > 0.0 && distanceToHorizon < sky.sky_horizon_blend) {
-            const float blend = 1.0 - distanceToHorizon / sky.sky_horizon_blend;
+    if (distance_to_horizon > 0.0) {
+        if (sky.sky_horizon_blend > 0.0 && distance_to_horizon < sky.sky_horizon_blend) {
+            float blend = 1.0 - distance_to_horizon / sky.sky_horizon_blend;
             color = mix(sky.sky_color, sky.horizon_color, blend * blend);
         } else {
             color = sky.sky_color;
         }
     }
+    color *= 1.0 - sky.sky_blend;
+    if (v_star.z > 0.0) {
+        float outside_globe = 1.0;
+        if (sky.sky_blend > 0.0) {
+            float4 target = sky.inv_view_projection * float4(v_pos, 0.0, 1.0);
+            float3 ray = normalize(target.xyz / target.w - sky.camera_position.xyz);
+            float closest = dot(ray, -sky.camera_position.xyz);
+            float distance_squared = dot(sky.camera_position.xyz, sky.camera_position.xyz) - closest * closest;
+            outside_globe = closest <= 0.0 || distance_squared > 1.0 ? 1.0 : 0.0;
+        }
+        float visibility = mix(step(0.0, distance_to_horizon), outside_globe, sky.sky_blend);
+        float alpha = (1.0 - smoothstep(0.1, 1.0, length(v_star.xy))) *
+                      v_star.z * sky.star_opacity * visibility * (1.0 - color.a);
+        fragColor = float4(float3(alpha), alpha);
+    } else {
+        fragColor = color + sky.backdrop_color * (1.0 - color.a);
+    }
 
-    return half4(color * (1.0 - sky.sky_blend));
+    return half4(fragColor);
 }
 )";
 };

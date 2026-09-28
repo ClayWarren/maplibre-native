@@ -1,0 +1,11 @@
+{
+  "version": 8,
+  "metadata": {"test": {"width": 512, "height": 512}},
+  "zoom": 0,
+  "center": [70, 20],
+  "bearing": 30,
+  "projection": {"type": "globe"},
+  "sky": {"star-opacity": 1, "backdrop-color": "#000207", "atmosphere-blend": 0.4},
+  "sources": {},
+  "layers": [{"id": "planet", "type": "background", "paint": {"background-color": "#102541"}}]
+}

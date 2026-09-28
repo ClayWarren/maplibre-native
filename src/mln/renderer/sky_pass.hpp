@@ -19,7 +19,9 @@ class ShaderRegistry;
 
 /// Owns the source-independent fullscreen passes used by the root `sky` style property.
 ///
-/// The planar sky is rendered before style layers. The physical atmosphere is rendered
+/// The backdrop, stars, and planar sky are rendered before style layers. The sky shader
+/// uses fullscreen vertices for the backdrop and indexed billboard corners for stars.
+/// The physical atmosphere is rendered
 /// after them, against the globe depth prepass, so the planet correctly occludes it.
 class SkyPass {
 public:
@@ -40,6 +42,7 @@ private:
     LayerGroupPtr atmosphereLayerGroup;
     gfx::ShaderProgramBasePtr skyShader;
     gfx::ShaderProgramBasePtr atmosphereShader;
+    bool hasStars = false;
 };
 
 } // namespace mln

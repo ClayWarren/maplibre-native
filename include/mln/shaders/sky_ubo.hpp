@@ -15,9 +15,15 @@ struct alignas(16) SkyPropsUBO {
     /* 48 */ std::array<float, 2> viewport_size;
     /* 56 */ float sky_horizon_blend;
     /* 60 */ float sky_blend;
-    /* 64 */
+    /* 64 */ Color backdrop_color;
+    /* 80 */ std::array<float, 4 * 4> star_matrix;
+    /* 144 */ std::array<float, 4 * 4> inv_view_projection;
+    /* 208 */ std::array<float, 4> camera_position;
+    /* 224 */ float star_opacity;
+    /* 228 */ float pixel_ratio;
+    /* 232 */ std::array<float, 2> padding{};
 };
-static_assert(sizeof(SkyPropsUBO) == 4 * 16);
+static_assert(sizeof(SkyPropsUBO) == 15 * 16);
 
 struct alignas(16) AtmospherePropsUBO {
     /*  0 */ std::array<float, 4 * 4> inv_view_projection;

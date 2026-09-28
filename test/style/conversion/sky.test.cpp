@@ -36,6 +36,8 @@ TEST(StyleConversion, SkyDefaults) {
     EXPECT_FLOAT_EQ(0.8f, Sky::getDefaultAtmosphereBlend());
 
     const auto& evaluated = renderSky.getEvaluated();
+    EXPECT_FLOAT_EQ(0.0f, evaluated.get<SkyStarOpacity>());
+    EXPECT_EQ(Color{}, evaluated.get<SkyBackdropColor>());
     EXPECT_EQ(Sky::getDefaultSkyColor(), evaluated.get<SkyColor>());
     EXPECT_EQ(Color::white(), evaluated.get<SkyHorizonColor>());
     EXPECT_EQ(Color::white(), evaluated.get<SkyFogColor>());
@@ -130,6 +132,33 @@ TEST(StyleConversion, SkyZoomExpressions) {
     renderSky.evaluate(PropertyEvaluationParameters(10.0f));
     EXPECT_FLOAT_EQ(1.0f, renderSky.getEvaluated().get<SkyAtmosphereBlend>());
     EXPECT_EQ(Color::white(), renderSky.getEvaluated().get<SkyColor>());
+}
+
+TEST(StyleConversion, SkyStarsZoomAndTransitions) {
+    Error error;
+    auto sky = parseSky(R"({
+        "star-opacity": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0],
+        "backdrop-color": "#000207",
+        "star-opacity-transition": {"duration": 500},
+        "backdrop-color-transition": {"delay": 20}
+    })",
+                        error);
+    ASSERT_TRUE(sky) << error.message;
+    EXPECT_TRUE(sky->getStarOpacity().isExpression());
+    EXPECT_EQ(Milliseconds(500), sky->getStarOpacityTransition().duration);
+    EXPECT_EQ(Milliseconds(20), sky->getBackdropColorTransition().delay);
+    RenderSky rendered(sky->impl);
+    rendered.evaluate(PropertyEvaluationParameters(2.0f));
+    EXPECT_FLOAT_EQ(0.5f, rendered.getEvaluated().get<SkyStarOpacity>());
+    const auto backdrop = rendered.getEvaluated().get<SkyBackdropColor>();
+    EXPECT_FLOAT_EQ(0, backdrop.r);
+    EXPECT_FLOAT_EQ(2.0f / 255, backdrop.g);
+    EXPECT_FLOAT_EQ(7.0f / 255, backdrop.b);
+    EXPECT_FLOAT_EQ(1, backdrop.a);
+    rendered.evaluate(PropertyEvaluationParameters(4.0f));
+    EXPECT_FLOAT_EQ(0.0f, rendered.getEvaluated().get<SkyStarOpacity>());
+    EXPECT_FALSE(parseSky(R"({"star-opacity":"bright"})", error));
+    EXPECT_FALSE(parseSky(R"({"backdrop-color":5})", error));
 }
 
 TEST(StyleConversion, InvalidSky) {

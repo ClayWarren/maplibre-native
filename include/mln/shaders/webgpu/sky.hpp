@@ -17,27 +17,11 @@ struct ShaderSource<BuiltIn::SkyShader, gfx::Backend::Type::WebGPU> {
 struct VertexInput {
     @location(0) position: vec2<i32>,
 };
-
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) pos: vec2<f32>,
+    @location(1) star: vec3<f32>,
 };
-
-@vertex
-fn main(in: VertexInput) -> VertexOutput {
-    let pos = vec2<f32>(f32(in.position.x), f32(in.position.y));
-    var out: VertexOutput;
-    out.position = vec4<f32>(pos, 1.0, 1.0);
-    out.pos = pos;
-    return out;
-}
-)";
-
-    static constexpr auto fragment = R"(
-struct FragmentInput {
-    @location(0) pos: vec2<f32>,
-};
-
 struct SkyPropsUBO {
     sky_color: vec4<f32>,
     horizon_color: vec4<f32>,
@@ -46,8 +30,63 @@ struct SkyPropsUBO {
     viewport_size: vec2<f32>,
     sky_horizon_blend: f32,
     sky_blend: f32,
+    backdrop_color: vec4<f32>,
+    star_matrix: mat4x4<f32>,
+    inv_view_projection: mat4x4<f32>,
+    camera_position: vec4<f32>,
+    star_opacity: f32,
+    pixel_ratio: f32,
+    padding: vec2<f32>,
 };
+@group(0) @binding(5) var<uniform> sky: SkyPropsUBO;
 
+@vertex
+fn main(in: VertexInput) -> VertexOutput {
+    let pos = vec2<f32>(in.position);
+    var out: VertexOutput;
+    out.position = vec4<f32>(pos, 1.0, 1.0);
+    out.pos = pos;
+    out.star = vec3<f32>(0.0);
+    if (pos.x >= 2.0) {
+        let index = pos.x - 2.0;
+        let height = 1.0 - 2.0 * (index + 0.5) / 2048.0;
+        let longitude = index * 2.399963229728653;
+        let radius = sqrt(max(0.0, 1.0 - height * height));
+        let direction = vec3<f32>(sin(longitude) * radius, height, cos(longitude) * radius);
+        let corner = vec2<f32>(select(-1.0, 1.0, pos.y == 1.0 || pos.y == 2.0),
+                               select(-1.0, 1.0, pos.y >= 2.0));
+        let magnitude = (index * 73.0 % 101.0) / 100.0;
+        let size = 0.75 + magnitude * magnitude;
+        let projected = sky.star_matrix * vec4<f32>(direction, 0.0);
+        let xy = projected.xy + corner * size * 2.0 * sky.pixel_ratio / sky.viewport_size * projected.w;
+        out.position = vec4<f32>(xy, projected.w, projected.w);
+        out.pos = xy / projected.w;
+        out.star = vec3<f32>(corner, 0.25 + 0.75 * magnitude);
+    }
+    return out;
+}
+)";
+    static constexpr auto fragment = R"(
+struct FragmentInput {
+    @location(0) pos: vec2<f32>,
+    @location(1) star: vec3<f32>,
+};
+struct SkyPropsUBO {
+    sky_color: vec4<f32>,
+    horizon_color: vec4<f32>,
+    horizon: vec2<f32>,
+    horizon_normal: vec2<f32>,
+    viewport_size: vec2<f32>,
+    sky_horizon_blend: f32,
+    sky_blend: f32,
+    backdrop_color: vec4<f32>,
+    star_matrix: mat4x4<f32>,
+    inv_view_projection: mat4x4<f32>,
+    camera_position: vec4<f32>,
+    star_opacity: f32,
+    pixel_ratio: f32,
+    padding: vec2<f32>,
+};
 @group(0) @binding(5) var<uniform> sky: SkyPropsUBO;
 
 @fragment
@@ -63,7 +102,22 @@ fn main(in: FragmentInput) -> @location(0) vec4<f32> {
             color = sky.sky_color;
         }
     }
-    return color * (1.0 - sky.sky_blend);
+    color *= 1.0 - sky.sky_blend;
+    if (in.star.z > 0.0) {
+        var outside_globe = 1.0;
+        if (sky.sky_blend > 0.0) {
+            let target = sky.inv_view_projection * vec4<f32>(in.pos, 0.0, 1.0);
+            let ray = normalize(target.xyz / target.w - sky.camera_position.xyz);
+            let closest = dot(ray, -sky.camera_position.xyz);
+            let distance_squared = dot(sky.camera_position.xyz, sky.camera_position.xyz) - closest * closest;
+            outside_globe = select(0.0, 1.0, closest <= 0.0 || distance_squared > 1.0);
+        }
+        let visibility = mix(step(0.0, distance_to_horizon), outside_globe, sky.sky_blend);
+        let alpha = (1.0 - smoothstep(0.1, 1.0, length(in.star.xy))) *
+                    in.star.z * sky.star_opacity * visibility * (1.0 - color.a);
+        return vec4<f32>(vec3<f32>(alpha), alpha);
+    }
+    return color + sky.backdrop_color * (1.0 - color.a);
 }
 )";
 };
