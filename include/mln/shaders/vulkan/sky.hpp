@@ -62,8 +62,16 @@ void main() {
                            a_pos.y >= 2.0 ? 1.0 : -1.0);
         float magnitude = mod(index * 73.0, 101.0) / 100.0;
         float size = 0.75 + magnitude * magnitude;
+        vec2 starViewport = sky.viewport_size;
+#ifdef USE_SURFACE_TRANSFORM
+        // Billboard offsets are in pre-rotation clip space. Android's swapchain
+        // extent stays in surface orientation, so quarter turns swap its axes.
+        const mat2 surfaceRotation = mat2(platformParams.surfaceRotation.xy,
+                                         platformParams.surfaceRotation.zw);
+        starViewport = abs(surfaceRotation * starViewport);
+#endif
         vec4 projected = sky.star_matrix * vec4(direction, 0.0);
-        projected.xy += corner * size * 2.0 * sky.pixel_ratio / sky.viewport_size * projected.w;
+        projected.xy += corner * size * 2.0 * sky.pixel_ratio / starViewport * projected.w;
         gl_Position = vec4(projected.xy, projected.w, projected.w);
         v_pos = projected.xy / projected.w;
         v_star = vec3(corner, 0.25 + 0.75 * magnitude);
