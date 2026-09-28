@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$DOGFOOD_VERSION" > VERSION
           printf 'cmake.dir=%s\n' "$(dirname "$(dirname "$(command -v cmake)")")" > local.properties
-          sdkmanager 'ndk;28.2.13676358' 'platforms;android-34'
+          "${ANDROID_HOME:?}/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.2.13676358' 'platforms;android-34'
 
       - name: Build ARM64 Vulkan library and dependency metadata
         working-directory: platform/android
