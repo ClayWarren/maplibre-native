@@ -48,6 +48,21 @@ void addStars(LayerGroup& group, gfx::Context& context, const gfx::ShaderProgram
     for (auto& drawable : builder->clearDrawables()) {
         group.addDrawable(std::move(drawable));
     }
+    // Composite the planar sky above stars, not the other way around. The
+    // negative x encoding selects the sky-only fullscreen path in the shader.
+    auto overlay = context.createDrawableBuilder("sky-over-stars");
+    overlay->setShader(shader);
+    overlay->setRenderPass(RenderPass::Translucent);
+    overlay->setEnableDepth(false);
+    overlay->setEnableStencil(false);
+    overlay->setColorMode(gfx::ColorMode::alphaBlended());
+    overlay->setCullFaceMode(gfx::CullFaceMode::disabled());
+    overlay->setVertexAttrId(shaders::idSkyPosVertexAttribute);
+    overlay->addQuad(-4, -1, -2, 1);
+    overlay->flush(context);
+    for (auto& drawable : overlay->clearDrawables()) {
+        group.addDrawable(std::move(drawable));
+    }
 }
 
 LayerGroupPtr makeFullscreenLayerGroup(gfx::Context& context,

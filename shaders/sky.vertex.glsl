@@ -23,6 +23,11 @@ void main() {
     v_pos = a_pos;
     v_star = vec3(0.0);
     gl_Position = vec4(a_pos, 1.0, 1.0);
+    if (a_pos.x < -1.0) {
+        v_pos.x += 3.0;
+        gl_Position.x += 3.0;
+        v_star.z = -1.0;
+    }
     if (a_pos.x >= 2.0) {
         float index = a_pos.x - 2.0;
         float height = 1.0 - 2.0 * (index + 0.5) / 2048.0;

@@ -47,6 +47,11 @@ fn main(in: VertexInput) -> VertexOutput {
     out.position = vec4<f32>(pos, 1.0, 1.0);
     out.pos = pos;
     out.star = vec3<f32>(0.0);
+    if (pos.x < -1.0) {
+        out.pos.x += 3.0;
+        out.position.x += 3.0;
+        out.star.z = -1.0;
+    }
     if (pos.x >= 2.0) {
         let index = pos.x - 2.0;
         let height = 1.0 - 2.0 * (index + 0.5) / 2048.0;
@@ -114,9 +119,11 @@ fn main(in: FragmentInput) -> @location(0) vec4<f32> {
         }
         let visibility = mix(step(0.0, distance_to_horizon), outside_globe, sky.sky_blend);
         let alpha = (1.0 - smoothstep(0.1, 1.0, length(in.star.xy))) *
-                    in.star.z * sky.star_opacity * visibility * (1.0 - color.a);
+                    in.star.z * sky.star_opacity * visibility;
         return vec4<f32>(vec3<f32>(alpha), alpha);
     }
+    if (in.star.z < 0.0) { return color; }
+    if (sky.star_opacity > 0.0) { return sky.backdrop_color; }
     return color + sky.backdrop_color * (1.0 - color.a);
 }
 )";
