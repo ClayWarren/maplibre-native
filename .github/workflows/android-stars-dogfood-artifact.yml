@@ -1,0 +1,106 @@
+name: Android Vulkan stars dogfood artifact
+
+on:
+  push:
+    branches: [codex/native-sky-stars]
+    paths:
+      - .github/workflows/android-stars-dogfood-artifact.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      IS_LOCAL_DEVELOPMENT: false
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
+      DOGFOOD_VERSION: 13.6.1-stars.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configure fork version and build tools
+        working-directory: platform/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$DOGFOOD_VERSION" > VERSION
+          printf 'cmake.dir=%s\n' "$(dirname "$(dirname "$(command -v cmake)")")" > local.properties
+          sdkmanager 'ndk;28.2.13676358' 'platforms;android-34'
+
+      - name: Build ARM64 Vulkan library and dependency metadata
+        working-directory: platform/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --max-workers=2 \
+            :MapLibreAndroid:assembleVulkanRelease \
+            :MapLibreAndroid:generatePomFileForVulkanreleasePublication \
+            -Pmaplibre.abis=arm64-v8a \
+            -PpublicationRepositoryUrl="file://$GITHUB_WORKSPACE/dogfood-maven"
+
+      - name: Verify API and package a standalone Maven repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          import shutil
+          import subprocess
+          import tempfile
+          import xml.etree.ElementTree as ET
+          import zipfile
+
+          version = os.environ['DOGFOOD_VERSION']
+          aar = pathlib.Path('platform/android/MapLibreAndroid/build/outputs/aar/MapLibreAndroid-vulkan-release.aar')
+          pom = pathlib.Path('platform/android/MapLibreAndroid/build/publications/vulkanrelease/pom-default.xml')
+          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+          metadata = ET.parse(pom).getroot()
+          assert metadata.findtext('m:version', namespaces=ns) == version
+          assert metadata.findtext('m:artifactId', namespaces=ns) == 'android-sdk-vulkan'
+          assert metadata.find('m:dependencies', ns) is not None
+          with zipfile.ZipFile(aar) as archive, tempfile.TemporaryDirectory() as temp:
+              libs = [name for name in archive.namelist() if name.startswith('jni/') and name.endswith('.so')]
+              assert libs == ['jni/arm64-v8a/libmaplibre.so'], libs
+              archive.extract('classes.jar', temp)
+              api = subprocess.check_output(['javap', '-classpath', f'{temp}/classes.jar',
+                  'org.maplibre.android.style.sky.Sky'], text=True)
+              assert 'setStarOpacity' in api and 'setBackdropColor' in api, api
+              archive.extract(libs[0], temp)
+              elf = subprocess.check_output(['readelf', '-h', f'{temp}/{libs[0]}'], text=True)
+              assert 'AArch64' in elf, elf
+          root = pathlib.Path('dogfood-maven')
+          package = root / 'org/maplibre/gl/android-sdk-vulkan' / version
+          package.mkdir(parents=True)
+          for source, extension in [(aar, 'aar'), (pom, 'pom')]:
+              target = package / f'android-sdk-vulkan-{version}.{extension}'
+              shutil.copyfile(source, target)
+              target.with_suffix(target.suffix + '.sha256').write_text(hashlib.sha256(target.read_bytes()).hexdigest() + '\n')
+          shutil.copyfile('LICENSE.md', root / 'LICENSE.md')
+          name = f'maplibre-android-vulkan-{version}-arm64-maven.zip'
+          shutil.make_archive(name.removesuffix('.zip'), 'zip', root)
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          digest = hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
+          pathlib.Path('android-provenance.txt').write_text(
+              f'source={commit}\nversion={version}\nbackend=vulkan\nabi=arm64-v8a\nsha256={digest}  {name}\n')
+          PY
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-vulkan-dogfood-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            maplibre-android-vulkan-*-arm64-maven.zip
+            android-provenance.txt
