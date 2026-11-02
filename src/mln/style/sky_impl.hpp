@@ -49,7 +49,17 @@ struct SkyHorizonBlend : SkyProperty<float> {
     static float defaultValue() { return 0.8f; }
 };
 
-using SkyProperties = Properties<SkyAtmosphereBlend,
+struct SkyStarOpacity : SkyProperty<float> {
+    static float defaultValue() { return 0.0f; }
+};
+
+struct SkyBackdropColor : SkyProperty<Color> {
+    static Color defaultValue() { return {}; }
+};
+
+using SkyProperties = Properties<SkyStarOpacity,
+                                 SkyBackdropColor,
+                                 SkyAtmosphereBlend,
                                  SkyFogColor,
                                  SkyFogGroundBlend,
                                  SkyHorizonColor,

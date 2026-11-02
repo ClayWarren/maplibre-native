@@ -4,6 +4,7 @@ MapLibre welcomes participation and contributions from everyone. Please read [`M
 
 ## main
 
+- Fork: add opt-in renderer-owned stars with `star-opacity` and `backdrop-color` sky properties, including zoom expressions and transitions.
 - Add nullable `MLNSky` runtime styling with zoom expressions, transitions, and removal.
 - feat(core): render the map as a globe when the style sets `"projection": {"type": "globe"}` ([#4533](https://github.com/maplibre/maplibre-native/pull/4533)).
 - feat(ios): with `rotateEnabled`, drags and zooms on the globe turn the bearing with the planet, so the place under the finger stays under it over the poles and nothing spins about them ([#4533](https://github.com/maplibre/maplibre-native/pull/4533)).

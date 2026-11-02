@@ -7,6 +7,7 @@
 #include <mln/gfx/projection_variant.hpp>
 #include <mln/gfx/shader_registry.hpp>
 #include <mln/map/transform_state.hpp>
+#include <mln/map/vertical_perspective_projection.hpp>
 #include <mln/renderer/render_pass.hpp>
 #include <mln/shaders/shader_defines.hpp>
 #include <mln/shaders/sky_ubo.hpp>
@@ -27,6 +28,27 @@ namespace {
 
 constexpr std::string_view SkyShaderName = "SkyShader";
 constexpr std::string_view AtmosphereShaderName = "AtmosphereShader";
+
+// Same Fibonacci sphere and magnitude sequence as our GL JS fork. Encode the star
+// index and billboard corner in Short2 vertices; rotation stays on the GPU.
+void addStars(LayerGroup& group, gfx::Context& context, const gfx::ShaderProgramBasePtr& shader) {
+    auto builder = context.createDrawableBuilder("stars");
+    builder->setShader(shader);
+    builder->setRenderPass(RenderPass::Translucent);
+    builder->setEnableDepth(false);
+    builder->setEnableStencil(false);
+    builder->setColorMode(gfx::ColorMode::alphaBlended());
+    builder->setCullFaceMode(gfx::CullFaceMode::disabled());
+    builder->setVertexAttrId(shaders::idSkyPosVertexAttribute);
+    for (int16_t star = 2; star < 2050; ++star) {
+        builder->addTriangle(star, 0, star, 1, star, 2);
+        builder->addTriangle(star, 0, star, 2, star, 3);
+    }
+    builder->flush(context);
+    for (auto& drawable : builder->clearDrawables()) {
+        group.addDrawable(std::move(drawable));
+    }
+}
 
 LayerGroupPtr makeFullscreenLayerGroup(gfx::Context& context,
                                        const gfx::ShaderProgramBasePtr& shader,
@@ -100,13 +122,19 @@ void SkyPass::update(gfx::ShaderRegistry& shaders,
     }
 
     const double projectionTransition = std::clamp(state.getProjectionTransition(), 0.0, 1.0);
-    if (projectionTransition < 1.0) {
+    const float starOpacity = std::clamp(evaluated->get<style::SkyStarOpacity>(), 0.0f, 1.0f);
+    const bool wantsStars = starOpacity > 0.0f;
+    if (projectionTransition < 1.0 || wantsStars || evaluated->get<style::SkyBackdropColor>().a > 0.0f) {
         if (!skyShader) {
             skyShader = context.getGenericShader(shaders, std::string(SkyShaderName), gfx::ProjectionVariant::Mercator);
         }
-        if (!skyLayerGroup || skyLayerGroup->empty()) {
+        if (!skyLayerGroup || skyLayerGroup->empty() || wantsStars != hasStars) {
             skyLayerGroup = makeFullscreenLayerGroup(
                 context, skyShader, "sky", shaders::idSkyPosVertexAttribute, false, gfx::DepthMaskType::ReadWrite);
+            hasStars = wantsStars;
+            if (skyLayerGroup && wantsStars) {
+                addStars(*skyLayerGroup, context, skyShader);
+            }
         }
 
         if (skyLayerGroup) {
@@ -122,6 +150,13 @@ void SkyPass::update(gfx::ShaderRegistry& shaders,
                 {static_cast<float>(viewportSize.width * 0.5 + normal[0] * horizonDistance),
                  static_cast<float>(viewportSize.height * 0.5 + normal[1] * horizonDistance)}};
 
+            mat4 inverse;
+            matrix::identity(inverse);
+            vec3 camera{};
+            if (state.isGlobeRendering()) {
+                inverse = state.getInverseGlobeViewProjectionMatrix();
+                camera = state.getGlobeCameraPosition();
+            }
             const shaders::SkyPropsUBO props = {
                 .sky_color = evaluated->get<style::SkyColor>(),
                 .horizon_color = evaluated->get<style::SkyHorizonColor>(),
@@ -130,6 +165,16 @@ void SkyPass::update(gfx::ShaderRegistry& shaders,
                 .viewport_size = {{static_cast<float>(viewportSize.width), static_cast<float>(viewportSize.height)}},
                 .sky_horizon_blend = evaluated->get<style::SkyHorizonBlend>() * viewportSize.height * 0.5f,
                 .sky_blend = static_cast<float>(projectionTransition),
+                .backdrop_color = evaluated->get<style::SkyBackdropColor>(),
+                // w=0 discards all translation, so zoom never moves the stars.
+                .star_matrix = util::cast<float>(VerticalPerspectiveProjection::globeViewProjectionMatrix(state, 1.0)),
+                .inv_view_projection = util::cast<float>(inverse),
+                .camera_position = {{static_cast<float>(camera[0]),
+                                     static_cast<float>(camera[1]),
+                                     static_cast<float>(camera[2]),
+                                     0.0f}},
+                .star_opacity = starOpacity,
+                .pixel_ratio = pixelRatio,
             };
             skyLayerGroup->mutableUniformBuffers().createOrUpdate(shaders::idSkyPropsUBO, &props, context);
         }

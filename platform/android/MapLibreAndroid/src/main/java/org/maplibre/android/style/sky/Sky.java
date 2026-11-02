@@ -428,6 +428,116 @@ public class Sky {
     nativeSetAtmosphereBlendTransition(options.getDuration(), options.getDelay());
   }
 
+  /**
+   * Sets star-opacity. Opacity of the deterministic, infinitely distant star field.
+   *
+   * @param value a value between 0 and 1
+   */
+  public void setStarOpacity(float value) {
+    setProperty("star-opacity", value);
+  }
+
+  /**
+   * Sets star-opacity from a zoom expression. Opacity of the deterministic, infinitely distant star field.
+   *
+   * @param expression a zoom expression that evaluates to a number
+   */
+  public void setStarOpacity(@NonNull Expression expression) {
+    setProperty("star-opacity", expression);
+  }
+
+  /**
+   * Gets star-opacity.
+   *
+   * @return a property value containing a float or expression
+   */
+  @NonNull
+  @SuppressWarnings("unchecked")
+  public PropertyValue<Float> getStarOpacity() {
+    checkThread();
+    return (PropertyValue<Float>) new PropertyValue("star-opacity", nativeGetStarOpacity());
+  }
+
+  /** Gets the transition options for star-opacity. */
+  @NonNull
+  public TransitionOptions getStarOpacityTransition() {
+    checkThread();
+    return nativeGetStarOpacityTransition();
+  }
+
+  /** Sets the transition options for star-opacity. */
+  public void setStarOpacityTransition(@NonNull TransitionOptions options) {
+    checkThread();
+    nativeSetStarOpacityTransition(options.getDuration(), options.getDelay());
+  }
+
+  /**
+   * Sets backdrop-color. Color behind the sky and globe.
+   *
+   * @param value an Android color integer
+   */
+  public void setBackdropColor(@ColorInt int value) {
+    setBackdropColor(ColorUtils.colorToRgbaString(value));
+  }
+
+  /**
+   * Sets backdrop-color. Color behind the sky and globe.
+   *
+   * @param value a CSS color string
+   */
+  public void setBackdropColor(@NonNull String value) {
+    setProperty("backdrop-color", value);
+  }
+
+  /**
+   * Sets backdrop-color from a zoom expression. Color behind the sky and globe.
+   *
+   * @param expression a zoom expression that evaluates to a color
+   */
+  public void setBackdropColor(@NonNull Expression expression) {
+    setProperty("backdrop-color", expression);
+  }
+
+  /**
+   * Gets backdrop-color.
+   *
+   * @return a property value containing a CSS color string or expression
+   */
+  @NonNull
+  @SuppressWarnings("unchecked")
+  public PropertyValue<String> getBackdropColor() {
+    checkThread();
+    return (PropertyValue<String>) new PropertyValue("backdrop-color", nativeGetBackdropColor());
+  }
+
+  /**
+   * Gets backdrop-color as an Android color integer.
+   *
+   * @return the Android color integer
+   * @throws IllegalStateException if the property is an expression or undefined
+   */
+  @ColorInt
+  public int getBackdropColorAsInt() {
+    PropertyValue<String> property = getBackdropColor();
+    if (!property.isValue()) {
+      throw new IllegalStateException("backdrop-color is not a constant value");
+    }
+    return ColorUtils.rgbaToColor(property.getValue());
+  }
+
+  /** Gets the transition options for backdrop-color. */
+  @NonNull
+  public TransitionOptions getBackdropColorTransition() {
+    checkThread();
+    return nativeGetBackdropColorTransition();
+  }
+
+  /** Sets the transition options for backdrop-color. */
+  public void setBackdropColorTransition(@NonNull TransitionOptions options) {
+    checkThread();
+    nativeSetBackdropColorTransition(options.getDuration(), options.getDelay());
+  }
+
   private void setProperty(@NonNull String name, @NonNull Object value) {
     checkThread();
     nativeSetProperty(name, value instanceof Expression ? ((Expression) value).toArray() : value);
@@ -519,6 +629,28 @@ public class Sky {
 
   @Keep
   private native void nativeSetAtmosphereBlendTransition(long duration, long delay);
+
+  @Nullable
+  @Keep
+  private native Object nativeGetStarOpacity();
+
+  @NonNull
+  @Keep
+  private native TransitionOptions nativeGetStarOpacityTransition();
+
+  @Keep
+  private native void nativeSetStarOpacityTransition(long duration, long delay);
+
+  @Nullable
+  @Keep
+  private native Object nativeGetBackdropColor();
+
+  @NonNull
+  @Keep
+  private native TransitionOptions nativeGetBackdropColorTransition();
+
+  @Keep
+  private native void nativeSetBackdropColorTransition(long duration, long delay);
 
   @Override
   @Keep

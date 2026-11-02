@@ -3,6 +3,20 @@ import referenceSpec from './style-spec-reference/v8.json' with { type: "json" }
 /** @type {any} */
 let modifiedReferenceSpec = referenceSpec;
 
+// Fork extensions shared with our GL JS star renderer. Opt-in defaults preserve existing styles.
+modifiedReferenceSpec.sky['star-opacity'] = {
+    type: 'number', default: 0, minimum: 0, maximum: 1, transition: true,
+    'property-type': 'data-constant',
+    expression: {interpolated: true, parameters: ['zoom']},
+    doc: 'Opacity of the deterministic, infinitely distant star field.'
+};
+modifiedReferenceSpec.sky['backdrop-color'] = {
+    type: 'color', default: 'transparent', transition: true,
+    'property-type': 'data-constant',
+    expression: {interpolated: true, parameters: ['zoom']},
+    doc: 'Color behind the sky and globe.'
+};
+
 // https://github.com/maplibre/maplibre-native/issues/250
 delete modifiedReferenceSpec['layout_symbol']['text-rotation-alignment']["values"]['viewport-glyph']
 

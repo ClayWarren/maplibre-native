@@ -44,19 +44,23 @@ namespace {
 
 enum class Property : uint8_t {
     AtmosphereBlend,
+    BackdropColor,
     FogColor,
     FogGroundBlend,
     HorizonColor,
     HorizonFogBlend,
     SkyColor,
     SkyHorizonBlend,
+    StarOpacity,
     AtmosphereBlendTransition,
+    BackdropColorTransition,
     FogColorTransition,
     FogGroundBlendTransition,
     HorizonColorTransition,
     HorizonFogBlendTransition,
     SkyColorTransition,
     SkyHorizonBlendTransition,
+    StarOpacityTransition,
 };
 
 template <typename T>
@@ -66,19 +70,23 @@ constexpr uint8_t toUint8(T t) noexcept {
 
 constexpr const auto properties = mapbox::eternal::hash_map<mapbox::eternal::string, uint8_t>(
     {{"atmosphere-blend", toUint8(Property::AtmosphereBlend)},
+     {"backdrop-color", toUint8(Property::BackdropColor)},
      {"fog-color", toUint8(Property::FogColor)},
      {"fog-ground-blend", toUint8(Property::FogGroundBlend)},
      {"horizon-color", toUint8(Property::HorizonColor)},
      {"horizon-fog-blend", toUint8(Property::HorizonFogBlend)},
      {"sky-color", toUint8(Property::SkyColor)},
      {"sky-horizon-blend", toUint8(Property::SkyHorizonBlend)},
+     {"star-opacity", toUint8(Property::StarOpacity)},
      {"atmosphere-blend-transition", toUint8(Property::AtmosphereBlendTransition)},
+     {"backdrop-color-transition", toUint8(Property::BackdropColorTransition)},
      {"fog-color-transition", toUint8(Property::FogColorTransition)},
      {"fog-ground-blend-transition", toUint8(Property::FogGroundBlendTransition)},
      {"horizon-color-transition", toUint8(Property::HorizonColorTransition)},
      {"horizon-fog-blend-transition", toUint8(Property::HorizonFogBlendTransition)},
      {"sky-color-transition", toUint8(Property::SkyColorTransition)},
-     {"sky-horizon-blend-transition", toUint8(Property::SkyHorizonBlendTransition)}});
+     {"sky-horizon-blend-transition", toUint8(Property::SkyHorizonBlendTransition)},
+     {"star-opacity-transition", toUint8(Property::StarOpacityTransition)}});
 
 } // namespace
 
@@ -91,7 +99,8 @@ std::optional<Error> Sky::setProperty(const std::string& name, const Convertible
     auto property = static_cast<Property>(it->second);
 
     if (property == Property::AtmosphereBlend || property == Property::FogGroundBlend ||
-        property == Property::HorizonFogBlend || property == Property::SkyHorizonBlend) {
+        property == Property::HorizonFogBlend || property == Property::SkyHorizonBlend ||
+        property == Property::StarOpacity) {
         Error error;
         std::optional<PropertyValue<float>> typedValue = convert<PropertyValue<float>>(value, error, false, false);
         if (!typedValue) {
@@ -117,13 +126,24 @@ std::optional<Error> Sky::setProperty(const std::string& name, const Convertible
             setSkyHorizonBlend(*typedValue);
             return std::nullopt;
         }
+
+        if (property == Property::StarOpacity) {
+            setStarOpacity(*typedValue);
+            return std::nullopt;
+        }
     }
 
-    if (property == Property::FogColor || property == Property::HorizonColor || property == Property::SkyColor) {
+    if (property == Property::BackdropColor || property == Property::FogColor || property == Property::HorizonColor ||
+        property == Property::SkyColor) {
         Error error;
         std::optional<PropertyValue<Color>> typedValue = convert<PropertyValue<Color>>(value, error, false, false);
         if (!typedValue) {
             return error;
+        }
+
+        if (property == Property::BackdropColor) {
+            setBackdropColor(*typedValue);
+            return std::nullopt;
         }
 
         if (property == Property::FogColor) {
@@ -150,6 +170,11 @@ std::optional<Error> Sky::setProperty(const std::string& name, const Convertible
 
     if (property == Property::AtmosphereBlendTransition) {
         setAtmosphereBlendTransition(*transition);
+        return std::nullopt;
+    }
+
+    if (property == Property::BackdropColorTransition) {
+        setBackdropColorTransition(*transition);
         return std::nullopt;
     }
 
@@ -183,6 +208,11 @@ std::optional<Error> Sky::setProperty(const std::string& name, const Convertible
         return std::nullopt;
     }
 
+    if (property == Property::StarOpacityTransition) {
+        setStarOpacityTransition(*transition);
+        return std::nullopt;
+    }
+
     return Error{"sky doesn't support this property"};
 }
 
@@ -195,6 +225,8 @@ StyleProperty Sky::getProperty(const std::string& name) const {
     switch (static_cast<Property>(it->second)) {
         case Property::AtmosphereBlend:
             return makeStyleProperty(getAtmosphereBlend());
+        case Property::BackdropColor:
+            return makeStyleProperty(getBackdropColor());
         case Property::FogColor:
             return makeStyleProperty(getFogColor());
         case Property::FogGroundBlend:
@@ -207,8 +239,12 @@ StyleProperty Sky::getProperty(const std::string& name) const {
             return makeStyleProperty(getSkyColor());
         case Property::SkyHorizonBlend:
             return makeStyleProperty(getSkyHorizonBlend());
+        case Property::StarOpacity:
+            return makeStyleProperty(getStarOpacity());
         case Property::AtmosphereBlendTransition:
             return makeStyleProperty(getAtmosphereBlendTransition());
+        case Property::BackdropColorTransition:
+            return makeStyleProperty(getBackdropColorTransition());
         case Property::FogColorTransition:
             return makeStyleProperty(getFogColorTransition());
         case Property::FogGroundBlendTransition:
@@ -221,6 +257,8 @@ StyleProperty Sky::getProperty(const std::string& name) const {
             return makeStyleProperty(getSkyColorTransition());
         case Property::SkyHorizonBlendTransition:
             return makeStyleProperty(getSkyHorizonBlendTransition());
+        case Property::StarOpacityTransition:
+            return makeStyleProperty(getStarOpacityTransition());
     }
     return {};
 }
@@ -249,6 +287,32 @@ void Sky::setAtmosphereBlendTransition(const TransitionOptions& options) {
 
 TransitionOptions Sky::getAtmosphereBlendTransition() const {
     return impl->properties.template get<SkyAtmosphereBlend>().options;
+}
+
+Color Sky::getDefaultBackdropColor() {
+    return SkyBackdropColor::defaultValue();
+}
+
+PropertyValue<Color> Sky::getBackdropColor() const {
+    return impl->properties.template get<SkyBackdropColor>().value;
+}
+
+void Sky::setBackdropColor(PropertyValue<Color> property) {
+    auto impl_ = mutableImpl();
+    impl_->properties.template get<SkyBackdropColor>().value = std::move(property);
+    impl = std::move(impl_);
+    observer->onSkyChanged(*this);
+}
+
+void Sky::setBackdropColorTransition(const TransitionOptions& options) {
+    auto impl_ = mutableImpl();
+    impl_->properties.template get<SkyBackdropColor>().options = options;
+    impl = std::move(impl_);
+    observer->onSkyChanged(*this);
+}
+
+TransitionOptions Sky::getBackdropColorTransition() const {
+    return impl->properties.template get<SkyBackdropColor>().options;
 }
 
 Color Sky::getDefaultFogColor() {
@@ -405,6 +469,32 @@ void Sky::setSkyHorizonBlendTransition(const TransitionOptions& options) {
 
 TransitionOptions Sky::getSkyHorizonBlendTransition() const {
     return impl->properties.template get<SkyHorizonBlend>().options;
+}
+
+float Sky::getDefaultStarOpacity() {
+    return SkyStarOpacity::defaultValue();
+}
+
+PropertyValue<float> Sky::getStarOpacity() const {
+    return impl->properties.template get<SkyStarOpacity>().value;
+}
+
+void Sky::setStarOpacity(PropertyValue<float> property) {
+    auto impl_ = mutableImpl();
+    impl_->properties.template get<SkyStarOpacity>().value = std::move(property);
+    impl = std::move(impl_);
+    observer->onSkyChanged(*this);
+}
+
+void Sky::setStarOpacityTransition(const TransitionOptions& options) {
+    auto impl_ = mutableImpl();
+    impl_->properties.template get<SkyStarOpacity>().options = options;
+    impl = std::move(impl_);
+    observer->onSkyChanged(*this);
+}
+
+TransitionOptions Sky::getStarOpacityTransition() const {
+    return impl->properties.template get<SkyStarOpacity>().options;
 }
 
 } // namespace style

@@ -14,7 +14,11 @@ std::optional<Sky> Converter<Sky>::operator()(const Convertible& value, Error& e
         return std::nullopt;
     }
 
-    static constexpr std::array<const char*, 14> properties{
+    static constexpr std::array<const char*, 18> properties{
+        "star-opacity",
+        "star-opacity-transition",
+        "backdrop-color",
+        "backdrop-color-transition",
         "atmosphere-blend",
         "atmosphere-blend-transition",
         "fog-color",
