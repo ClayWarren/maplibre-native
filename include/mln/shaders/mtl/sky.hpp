@@ -73,6 +73,11 @@ SkyFragmentStage vertex vertexMain(SkyVertexStage in [[stage_in]],
     v_pos = a_pos;
     v_star = float3(0.0);
     gl_Position = float4(a_pos, 1.0, 1.0);
+    if (a_pos.x < -1.0) {
+        v_pos.x += 3.0;
+        gl_Position.x += 3.0;
+        v_star.z = -1.0;
+    }
     if (a_pos.x >= 2.0) {
         float index = a_pos.x - 2.0;
         float height = 1.0 - 2.0 * (index + 0.5) / 2048.0;
@@ -120,10 +125,11 @@ half4 fragment fragmentMain(SkyFragmentStage in [[stage_in]],
         }
         float visibility = mix(step(0.0, distance_to_horizon), outside_globe, sky.sky_blend);
         float alpha = (1.0 - smoothstep(0.1, 1.0, length(v_star.xy))) *
-                      v_star.z * sky.star_opacity * visibility * (1.0 - color.a);
+                      v_star.z * sky.star_opacity * visibility;
         fragColor = float4(float3(alpha), alpha);
     } else {
-        fragColor = color + sky.backdrop_color * (1.0 - color.a);
+        fragColor = v_star.z < 0.0 ? color : (sky.star_opacity > 0.0 ? sky.backdrop_color :
+                    color + sky.backdrop_color * (1.0 - color.a));
     }
 
     return half4(fragColor);

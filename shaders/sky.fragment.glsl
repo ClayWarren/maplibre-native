@@ -42,9 +42,10 @@ void main() {
         }
         float visibility = mix(step(0.0, distance_to_horizon), outside_globe, sky.sky_blend);
         float alpha = (1.0 - smoothstep(0.1, 1.0, length(v_star.xy))) *
-                      v_star.z * sky.star_opacity * visibility * (1.0 - color.a);
+                      v_star.z * sky.star_opacity * visibility;
         fragColor = vec4(vec3(alpha), alpha);
     } else {
-        fragColor = color + sky.backdrop_color * (1.0 - color.a);
+        fragColor = v_star.z < 0.0 ? color : (sky.star_opacity > 0.0 ? sky.backdrop_color :
+                    color + sky.backdrop_color * (1.0 - color.a));
     }
 }

@@ -2,6 +2,7 @@
 #include <mln/gfx/headless_frontend.hpp>
 #include <mln/map/map.hpp>
 #include <mln/map/map_options.hpp>
+#include <mln/map/bound_options.hpp>
 #include <mln/storage/resource_options.hpp>
 #include <mln/style/style.hpp>
 #include <mln/style/sky.hpp>
@@ -69,4 +70,29 @@ TEST(SkyRendering, BackdropAndOpaquePlanarSky) {
     const auto image = frontend.render(map).image;
     EXPECT_EQ(0u, brightPixels(image));
     for (std::size_t i = 3; i < image.bytes(); i += 4) EXPECT_EQ(255, image.data[i]);
+}
+
+TEST(SkyRendering, TranslucentSkyCompositesOverStars) {
+    util::RunLoop loop;
+    HeadlessFrontend frontend{1};
+    Map map(frontend,
+            MapObserver::nullObserver(),
+            MapOptions().withMapMode(MapMode::Static).withSize(frontend.getSize()),
+            ResourceOptions().withCachePath(":memory:"));
+    map.getStyle().loadJSON(R"JSON({"version":8,
+        "sky":{"star-opacity":1,"backdrop-color":"black", "sky-horizon-blend":0,
+               "sky-color":"rgba(255,0,0,0.5)","horizon-color":"rgba(255,0,0,0.5)"},
+        "sources":{},"layers":[]})JSON");
+    map.setBounds(BoundOptions().withMaxPitch(85));
+    map.jumpTo(CameraOptions().withZoom(0).withPitch(85));
+    const auto image = frontend.render(map).image;
+    std::size_t visibleStars = 0;
+    for (std::size_t i = 0; i < image.bytes(); i += 4) {
+        if (image.data[i + 1] > 5) {
+            ++visibleStars;
+            // Premultiplied red at alpha 0.5 above a white star: R = 0.5 + G.
+            EXPECT_NEAR(127.5, int(image.data[i]) - int(image.data[i + 1]), 2);
+        }
+    }
+    EXPECT_GT(visibleStars, 5u);
 }
