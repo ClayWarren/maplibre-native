@@ -938,7 +938,8 @@ bool Placement::updateBucketDynamicAttributeData(SymbolBucket& bucket,
         Point<float> vecEast{1, 0};
         Point<float> vecSouth{0, 1};
         if (pitchWithMap && !rotateWithMap) {
-            vec2 east, south;
+            vec2 east;
+            vec2 south;
             getTileSkewVectors(state, east, south);
             vecEast = {static_cast<float>(east[0]), static_cast<float>(east[1])};
             vecSouth = {static_cast<float>(south[0]), static_cast<float>(south[1])};

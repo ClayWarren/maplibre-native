@@ -775,8 +775,10 @@ bool Context::renderGlobeTileClippingMasks(gfx::RenderPass& renderPass,
     const auto& pipeline = shaderImpl.getPipeline(globeClipping.pipelineInfo);
 
     commandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get(), dispatcher);
-    globeClipping.pipelineInfo.setScissorRect(
-        {0, 0, globeClipping.pipelineInfo.viewExtent.width, globeClipping.pipelineInfo.viewExtent.height});
+    globeClipping.pipelineInfo.setScissorRect({.x = 0,
+                                               .y = 0,
+                                               .width = globeClipping.pipelineInfo.viewExtent.width,
+                                               .height = globeClipping.pipelineInfo.viewExtent.height});
     globeClipping.pipelineInfo.setDynamicValues(backend, commandBuffer);
 
     auto& renderableResource = renderPassImpl.getDescriptor().renderable.getResource<SurfaceRenderableResource>();

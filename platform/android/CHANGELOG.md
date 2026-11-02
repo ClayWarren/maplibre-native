@@ -1,6 +1,6 @@
 # Changelog MapLibre Native for Android
 
-## main
+## 2026.11.2-globe
 
 - Add runtime `Sky` style API support, including zoom expressions, transitions, and removal.
 - Make symbol guard checks opt-in, so symbol-dense tiles load faster. To keep them, set the environment variable `MLN_SYMBOL_GUARDS=1` before the first map loads.
@@ -8,6 +8,7 @@
 ### ✨ Features and improvements
 
 - feat(core): render the map as a globe when the style sets `"projection": {"type": "globe"}` ([#4533](https://github.com/maplibre/maplibre-native/pull/4533)).
+- feat(android): with rotate gestures enabled, drags and zooms on the globe turn the bearing with the planet, so the place under the finger stays under it over the poles and nothing spins about them ([#4533](https://github.com/maplibre/maplibre-native/pull/4533)).
 - feat(android): `Projection#isLocationOccluded` tells whether the globe hides a location, for views placed over the map; a selected marker behind the globe is deselected ([#4533](https://github.com/maplibre/maplibre-native/pull/4533)).
 
 ## 13.7.1

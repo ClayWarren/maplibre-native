@@ -299,6 +299,8 @@ interface NativeMap {
 
   void setGestureInProgress(boolean inProgress);
 
+  void setGlobeFreeBearing(boolean freeBearing);
+
   float getPixelRatio();
 
   void triggerRepaint();

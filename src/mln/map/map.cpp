@@ -146,6 +146,14 @@ bool Map::isPanning() const {
     return impl->transform.isPanning();
 }
 
+void Map::setGlobeFreeBearing(bool freeBearing) {
+    impl->transform.setGlobeFreeBearing(freeBearing);
+}
+
+bool Map::isGlobeFreeBearing() const {
+    return impl->transform.isGlobeFreeBearing();
+}
+
 // MARK: -
 
 CameraOptions Map::getCameraOptions(const std::optional<EdgeInsets>& padding) const {
@@ -408,7 +416,10 @@ LatLngBounds globeBounds(const Transform& transform) {
     const auto width = static_cast<double>(transform.getState().getSize().width);
     const auto height = static_cast<double>(transform.getState().getSize().height);
     const LatLng center = transform.getLatLng();
-    double west = 0, east = 0, south = 0, north = 0;
+    double west = 0;
+    double east = 0;
+    double south = 0;
+    double north = 0;
     for (const ScreenCoordinate& point : std::array<ScreenCoordinate, 8>{{{0, 0},
                                                                           {width / 2, 0},
                                                                           {width, 0},
@@ -612,12 +623,7 @@ ProjectionMode Map::getProjectionMode() const {
 // MARK: - Projection
 
 ScreenCoordinate Map::pixelForLatLng(const LatLng& latLng) const {
-    // If the center and point longitudes are not in the same side of the
-    // antimeridian, we unwrap the point longitude so it would be seen if
-    // e.g. the next antimeridian side is visible.
-    LatLng unwrappedLatLng = latLng.wrapped();
-    unwrappedLatLng.unwrapForShortestPath(impl->transform.getLatLng());
-    return impl->transform.latLngToScreenCoordinate(unwrappedLatLng);
+    return impl->transform.latLngToScreenCoordinate(impl->transform.getState().latLngNearCenter(latLng));
 }
 
 LatLng Map::latLngForPixel(const ScreenCoordinate& pixel, LatLng::WrapMode wrapMode) const {

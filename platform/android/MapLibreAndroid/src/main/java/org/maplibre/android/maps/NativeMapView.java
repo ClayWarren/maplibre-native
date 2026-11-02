@@ -252,6 +252,14 @@ final class NativeMapView implements NativeMap {
   }
 
   @Override
+  public void setGlobeFreeBearing(boolean freeBearing) {
+    if (checkState("setGlobeFreeBearing")) {
+      return;
+    }
+    nativeSetGlobeFreeBearing(freeBearing);
+  }
+
+  @Override
   public void moveBy(double dx, double dy, long duration) {
     if (checkState("moveBy")) {
       return;
@@ -1544,6 +1552,9 @@ final class NativeMapView implements NativeMap {
 
   @Keep
   private native void nativeSetGestureInProgress(boolean inProgress);
+
+  @Keep
+  private native void nativeSetGlobeFreeBearing(boolean freeBearing);
 
   @Keep
   private native void nativeMoveBy(double dx, double dy, long duration);

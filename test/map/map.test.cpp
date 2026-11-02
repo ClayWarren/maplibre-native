@@ -371,6 +371,44 @@ TEST(Map, CameraToLatLngBoundsUnwrappedCrossDateLine) {
     ASSERT_TRUE(test.map.latLngBoundsForCameraUnwrapped(camera).crossesAntimeridian());
 }
 
+TEST(Map, PixelForLatLngWithTheCenterPastTheAntimeridian) {
+    MapTest<> test;
+    test.map.setSize({512, 512});
+    test.map.setBounds(BoundOptions().withLatLngBounds(LatLngBounds::hull({-10.0, 170.0}, {10.0, 190.0})));
+    test.map.jumpTo(CameraOptions().withCenter(LatLng{0.0, 181.0}).withZoom(4.0));
+    ASSERT_NEAR(181.0, test.map.getCameraOptions().center->longitude(), 1e-9);
+
+    // A degree is 512 * 2^4 / 360 pixels at zoom 4.
+    const double degree = 512.0 * 16.0 / 360.0;
+    const MapProjection projection(test.map);
+    for (const auto& [longitude, x] : {std::pair{179.0, 256.0 - 2 * degree}, std::pair{-179.5, 256.0 - 0.5 * degree}}) {
+        EXPECT_NEAR(x, test.map.pixelForLatLng({0.0, longitude}).x, 1e-6) << longitude;
+        EXPECT_NEAR(x, projection.pixelForLatLng({0.0, longitude}).x, 1e-6) << longitude;
+    }
+}
+
+// https://github.com/maplibre/maplibre-native/issues/3580
+// iOS ends a pan with a moveBy that has a duration while the gesture is still in progress. Across the antimeridian the
+// move starts a world away, and annotation views placed through pixelForLatLng vanished until the center crossed.
+TEST(Map, PixelForLatLngDuringAFlingAcrossTheAntimeridian) {
+    MapTest<> test{1, MapMode::Continuous};
+    test.map.setSize({512, 512});
+    test.map.jumpTo(CameraOptions().withCenter(LatLng{0.0, 179.0}).withZoom(4.0));
+
+    const double degree = 512.0 * 16.0 / 360.0;
+    test.map.setGestureInProgress(true);
+    test.map.moveBy({-2.0 * degree, 0.0}, AnimationOptions(Seconds(10)));
+    const double center = test.map.getCameraOptions().center->longitude();
+    ASSERT_LT(center, -180.0);
+
+    const MapProjection projection(test.map);
+    for (const auto& [longitude, nearest] : {std::pair{179.5, -180.5}, std::pair{-179.5, -179.5}}) {
+        const double x = 256.0 + (nearest - center) * degree;
+        EXPECT_NEAR(x, test.map.pixelForLatLng({0.0, longitude}).x, 1e-6) << longitude;
+        EXPECT_NEAR(x, projection.pixelForLatLng({0.0, longitude}).x, 1e-6) << longitude;
+    }
+}
+
 TEST(Map, LatLngForPixelUnwrapped) {
     MapTest<> test;
     test.map.setSize({2048, 512});
@@ -1395,7 +1433,7 @@ TEST(Map, GlobePrefetchRequestsCoarserTiles) {
     std::set<int> zooms;
     test.fileSource->tileResponse = [&](const Resource& resource) {
         if (resource.tileData) {
-            const std::lock_guard lock(mutex);
+            const std::scoped_lock lock(mutex);
             zooms.insert(resource.tileData->z);
         }
         Response res;
@@ -1408,7 +1446,7 @@ TEST(Map, GlobePrefetchRequestsCoarserTiles) {
     };
     test.runLoop.run();
 
-    const std::lock_guard lock(mutex);
+    const std::scoped_lock lock(mutex);
     EXPECT_TRUE(zooms.contains(4));
     EXPECT_TRUE(zooms.contains(8));
 }
@@ -1430,7 +1468,7 @@ TEST(Map, GlobeTileDrawnForItsChildrenMeetsFinerTilesWithoutAGap) {
     std::set<CanonicalTileID> served;
     test.fileSource->tileResponse = [&](const Resource& resource) -> std::optional<Response> {
         const auto& tile = *resource.tileData;
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         if (holdChildren && tile.z == 8 && tile.x / 2 == 20 && tile.y / 2 == 49) {
             return std::nullopt;
         }
@@ -1450,7 +1488,7 @@ TEST(Map, GlobeTileDrawnForItsChildrenMeetsFinerTilesWithoutAGap) {
     test.observer.didFinishLoadingMapCallback = nullptr;
 
     {
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         holdChildren = true;
         served.clear();
     }
@@ -1466,7 +1504,7 @@ TEST(Map, GlobeTileDrawnForItsChildrenMeetsFinerTilesWithoutAGap) {
             test.runLoop.stop();
             return;
         }
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         allParsed = !served.empty() && std::includes(parsed.begin(), parsed.end(), served.begin(), served.end());
     };
     test.map.jumpTo(CameraOptions().withZoom(8.2));
@@ -2331,7 +2369,7 @@ TEST(Map, GlobeKeepsItsTilesAcrossTheAntimeridian) {
     std::vector<OverscaledTileID> parsed;
     test.observer.onTileActionCallback = [&](TileOperation op, const OverscaledTileID& id, const std::string&) {
         if (op == TileOperation::StartParse) {
-            const std::lock_guard lock(mutex);
+            const std::scoped_lock lock(mutex);
             parsed.push_back(id);
         }
     };
@@ -2340,7 +2378,7 @@ TEST(Map, GlobeKeepsItsTilesAcrossTheAntimeridian) {
     (void)test.frontend.render(test.map);
     ASSERT_TRUE(test.map.getTransformState().isGlobeRendering());
     {
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         ASSERT_FALSE(parsed.empty());
         for (const auto& id : parsed) {
             ASSERT_EQ(OverscaledTileID(0, 0, 0, 0, 0), id);
@@ -2351,7 +2389,7 @@ TEST(Map, GlobeKeepsItsTilesAcrossTheAntimeridian) {
     test.map.jumpTo(CameraOptions().withCenter(LatLng{0, 181}));
     (void)test.frontend.render(test.map);
     EXPECT_NEAR(181.0, test.map.getTransformState().getLatLng().longitude(), 1e-9);
-    const std::lock_guard lock(mutex);
+    const std::scoped_lock lock(mutex);
     EXPECT_TRUE(parsed.empty()) << parsed.size() << " tiles parsed again, the first " << util::toString(parsed.front());
 }
 
